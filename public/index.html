@@ -8,61 +8,52 @@
 </head>
 <body>
   <div id="loginScreen" class="login-screen">
-    <div class="login-left">
-      <div class="brand-badge">TOSI TICKET</div>
-      <h1>Central inteligente de chamados</h1>
-      <p>Abra, acompanhe e resolva solicitações de TI, manutenção, compras, engenharia, PCP, RH e qualidade em um único portal.</p>
-      <div class="login-features">
-        <span>Help Desk</span><span>SLA</span><span>Kanban</span><span>IA Tosi</span>
+    <section class="login-hero">
+      <div class="brand-row"><div class="mark">IT</div><strong>Indústrias Tosi</strong></div>
+      <h1>Central de chamados inteligente</h1>
+      <p>Help Desk corporativo para TI, manutenção, compras, engenharia, PCP, RH e qualidade com SLA, Kanban, anexos, relatórios e IA Tosi.</p>
+      <div class="hero-grid">
+        <span>Tickets</span><span>SLA</span><span>Kanban</span><span>IA</span><span>Base de conhecimento</span><span>Relatórios</span>
       </div>
-    </div>
+    </section>
     <form id="loginForm" class="login-card">
-      <div class="logo-mark">IT</div>
-      <h2>Entrar no sistema</h2>
-      <label>E-mail</label>
-      <input id="loginEmail" type="email" value="admin@tosi.com.br" required />
-      <label>Senha</label>
-      <input id="loginPassword" type="password" value="123456" required />
-      <button type="submit">Entrar</button>
+      <div class="mark big">IT</div>
+      <h2>Entrar no Tosi Ticket</h2>
+      <label>E-mail</label><input id="loginEmail" type="email" value="admin@tosi.com.br" required>
+      <label>Senha</label><input id="loginPassword" type="password" value="123456" required>
+      <button class="primary">Entrar</button>
       <small>Demo local: admin@tosi.com.br / 123456</small>
     </form>
   </div>
 
   <div id="app" class="app hidden">
     <aside class="sidebar">
-      <div class="sidebar-logo"><span>IT</span><strong>Tosi Ticket</strong></div>
-      <nav>
-        <button class="nav active" data-page="dashboard">Dashboard</button>
-        <button class="nav" data-page="newTicket">Abrir chamado</button>
-        <button class="nav" data-page="tickets">Chamados</button>
-        <button class="nav" data-page="kanban">Kanban</button>
-        <button class="nav" data-page="knowledge">Base de conhecimento</button>
-        <button class="nav" data-page="ai">IA Tosi</button>
-        <button class="nav" data-page="settings">Configurações</button>
-      </nav>
-      <button id="logoutBtn" class="logout">Sair</button>
+      <div class="side-brand"><span class="mark">IT</span><div><strong>Tosi Ticket</strong><small>Help Desk Corporativo</small></div></div>
+      <nav id="nav"></nav>
+      <button id="logoutBtn" class="side-exit">Sair</button>
     </aside>
 
     <main class="main">
       <header class="topbar">
-        <div>
-          <h2 id="pageTitle">Dashboard</h2>
-          <p id="pageSubtitle">Resumo geral da central de chamados</p>
-        </div>
-        <div class="user-pill"><span id="userName">Administrador</span><small>ADM</small></div>
+        <div><h2 id="pageTitle">Dashboard</h2><p id="pageSubtitle">Resumo geral da central</p></div>
+        <div class="top-actions"><button id="themeBtn" class="ghost">Tema</button><span class="user-pill">Administrador <small>ADM</small></span></div>
       </header>
 
       <section id="dashboard" class="page active-page">
-        <div class="cards">
+        <div class="cards stats">
           <div class="card stat"><small>Abertos</small><strong id="statOpen">0</strong></div>
           <div class="card stat"><small>Em atendimento</small><strong id="statWork">0</strong></div>
-          <div class="card stat"><small>Aguardando usuário</small><strong id="statWaiting">0</strong></div>
+          <div class="card stat"><small>Aguardando</small><strong id="statWaiting">0</strong></div>
           <div class="card stat"><small>Concluídos</small><strong id="statDone">0</strong></div>
-          <div class="card stat danger"><small>SLA vencido</small><strong id="statLate">0</strong></div>
+          <div class="card stat danger"><small>SLA crítico</small><strong id="statLate">0</strong></div>
         </div>
         <div class="grid-2">
-          <div class="card"><h3>Chamados recentes</h3><div id="recentTickets" class="ticket-list"></div></div>
-          <div class="card"><h3>Distribuição por setor</h3><div id="sectorBars" class="bars"></div></div>
+          <div class="card"><h3>Chamados recentes</h3><div id="recentTickets"></div></div>
+          <div class="card"><h3>Chamados por setor</h3><div id="sectorBars"></div></div>
+        </div>
+        <div class="grid-2">
+          <div class="card"><h3>Prioridades</h3><div id="priorityBars"></div></div>
+          <div class="card"><h3>Fila rápida</h3><div id="quickQueue"></div></div>
         </div>
       </section>
 
@@ -70,44 +61,54 @@
         <form id="ticketForm" class="card form-card">
           <h3>Novo chamado</h3>
           <div class="form-grid">
-            <div><label>Título</label><input id="ticketTitle" required placeholder="Ex: Impressora não imprime" /></div>
-            <div><label>Setor</label><select id="ticketSector"><option>TI</option><option>Manutenção</option><option>Compras</option><option>Engenharia</option><option>PCP</option><option>Produção</option><option>RH</option><option>Qualidade</option><option>Comercial</option></select></div>
-            <div><label>Categoria</label><select id="ticketCategory"><option>Suporte técnico</option><option>Sistema</option><option>Equipamento</option><option>Documentação</option><option>Solicitação</option><option>Aprovação</option></select></div>
-            <div><label>Prioridade</label><select id="ticketPriority"><option>Baixa</option><option>Média</option><option>Alta</option><option>Crítica</option></select></div>
+            <div><label>Título</label><input id="ticketTitle" required placeholder="Ex: Impressora não imprime"></div>
+            <div><label>Setor</label><select id="ticketSector"></select></div>
+            <div><label>Categoria</label><select id="ticketCategory"></select></div>
+            <div><label>Prioridade</label><select id="ticketPriority"><option>Baixa</option><option selected>Média</option><option>Alta</option><option>Crítica</option></select></div>
           </div>
-          <label>Descrição</label>
-          <textarea id="ticketDescription" required placeholder="Descreva o problema ou solicitação"></textarea>
-          <label>Anexos</label>
-          <input id="ticketFiles" type="file" multiple />
-          <button type="submit">Criar chamado</button>
+          <label>Descrição</label><textarea id="ticketDescription" required placeholder="Descreva o problema, local, equipamento, prints e impacto."></textarea>
+          <div class="form-grid">
+            <div><label>Solicitante</label><input id="ticketRequester" value="Administrador"></div>
+            <div><label>Anexos</label><input id="ticketFiles" type="file" multiple></div>
+          </div>
+          <button class="primary">Abrir chamado</button>
         </form>
       </section>
 
       <section id="tickets" class="page">
-        <div class="toolbar card">
-          <input id="searchTickets" placeholder="Buscar chamado..." />
-          <select id="filterStatus"><option value="">Todos status</option><option>Aberto</option><option>Em análise</option><option>Em atendimento</option><option>Aguardando usuário</option><option>Resolvido</option><option>Fechado</option></select>
+        <div class="card">
+          <div class="toolbar"><input id="searchTickets" placeholder="Buscar por protocolo, título, setor..."><select id="filterStatus"><option value="">Todos os status</option></select><select id="filterPriority"><option value="">Todas prioridades</option><option>Baixa</option><option>Média</option><option>Alta</option><option>Crítica</option></select><button id="exportBtn" class="ghost">Exportar CSV</button></div>
+          <div id="ticketsTable"></div>
         </div>
-        <div id="ticketsTable" class="card table-card"></div>
       </section>
 
       <section id="kanban" class="page"><div id="kanbanBoard" class="kanban"></div></section>
 
       <section id="knowledge" class="page">
-        <div class="card"><h3>Base de conhecimento</h3><div class="faq"><details open><summary>Como abrir um chamado?</summary><p>Entre no menu Abrir chamado, informe título, setor, prioridade e descrição.</p></details><details><summary>Como funciona SLA?</summary><p>O prazo é calculado pela prioridade. Crítica vence mais rápido que baixa.</p></details><details><summary>Posso anexar fotos?</summary><p>Sim. A estrutura já está preparada para Supabase Storage.</p></details></div></div>
+        <div class="card"><h3>Base de conhecimento</h3><div id="kbList"></div></div>
       </section>
 
       <section id="ai" class="page">
-        <div class="card ai-card"><h3>IA Tosi</h3><p>Descreva um problema e a IA sugere setor, prioridade e possível solução.</p><textarea id="aiPrompt" placeholder="Ex: Meu computador não liga..."></textarea><button id="aiBtn">Analisar</button><div id="aiResult" class="ai-result"></div></div>
+        <div class="grid-2">
+          <div class="card ai-card"><h3>Triagem IA Tosi</h3><textarea id="aiPrompt" placeholder="Descreva o problema para a IA sugerir setor, prioridade e solução inicial."></textarea><button id="aiBtn" class="primary">Analisar</button><div id="aiResult" class="ai-result">Aguardando descrição.</div></div>
+          <div class="card"><h3>Ações da IA</h3><ul class="clean"><li>Classificar setor e categoria</li><li>Sugerir prioridade</li><li>Gerar resumo do chamado</li><li>Sugerir resposta para atendente</li><li>Pesquisar na base de conhecimento</li></ul></div>
+        </div>
+      </section>
+
+      <section id="reports" class="page">
+        <div class="grid-2"><div class="card"><h3>Relatório operacional</h3><div id="reportOps"></div></div><div class="card"><h3>Resumo SLA</h3><div id="reportSla"></div></div></div>
       </section>
 
       <section id="settings" class="page">
-        <div class="card"><h3>Configurações previstas</h3><ul><li>Usuários e permissões</li><li>Departamentos</li><li>SLA por prioridade</li><li>Respostas padrão</li><li>Integração e-mail/WhatsApp</li><li>Webhook RDO, Fornecedores, Compras e Protheus</li></ul></div>
+        <div class="grid-2">
+          <div class="card"><h3>Departamentos</h3><div id="departmentsList"></div><form id="deptForm" class="inline-form"><input id="deptName" placeholder="Novo departamento"><button class="ghost">Adicionar</button></form></div>
+          <div class="card"><h3>Usuários</h3><div id="usersList"></div></div>
+        </div>
       </section>
     </main>
   </div>
 
-  <dialog id="ticketModal"><div id="modalContent"></div><button onclick="ticketModal.close()">Fechar</button></dialog>
+  <dialog id="ticketModal"><div id="modalContent"></div><button class="ghost" onclick="ticketModal.close()">Fechar</button></dialog>
   <script src="./app.js"></script>
 </body>
 </html>
