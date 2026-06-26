@@ -37,7 +37,7 @@ function isClosed(t){return ['Resolvido','Fechado'].includes(t.status)}function 
 function slaPercent(t){if(isClosed(t))return 100;const start=new Date(t.createdAt),due=new Date(t.slaDueAt),now=new Date();const total=due-start;if(total<=0)return 100;return Math.max(0,Math.min(100,Math.round((now-start)/total*100)))}
 function init(){nav.innerHTML=navItems.map(([id,ic,label])=>`<button class="nav-btn" data-page="${id}"><span>${ic}</span>${label}</button>`).join('');document.querySelectorAll('.nav-btn').forEach(b=>b.onclick=()=>showPage(b.dataset.page));loginForm.onsubmit=e=>{e.preventDefault();loginScreen.classList.add('hidden');app.classList.remove('hidden');renderAll();};logoutBtn.onclick=()=>{app.classList.add('hidden');loginScreen.classList.remove('hidden')};themeBtn.onclick=()=>document.body.classList.toggle('dark');exportBtn.onclick=openReportCenter;printReportBtn.onclick=generateReportWindow;reportBtn.onclick=renderReports;ticketForm.onsubmit=createTicket;globalSearch.oninput=()=>{if(document.querySelector('#tickets.active-page'))renderTicketsTable()};['filterSector','filterCategory','filterPriority','filterStatus','filterSla'].forEach(id=>$(id).onchange=renderTicketsTable);fillOptions();showPage('dashboard');renderAll();}
 function fillOptions(){filterSector.innerHTML='<option value="">Todos</option>'+departments.map(d=>`<option>${d}</option>`).join('');filterCategory.innerHTML='<option value="">Todas</option>'+categories.map(c=>`<option>${c}</option>`).join('');filterStatus.innerHTML='<option value="">Todos</option>'+statusList.map(s=>`<option>${s}</option>`).join('');ticketSector.innerHTML=departments.map(d=>`<option>${d}</option>`).join('');ticketCategory.innerHTML=categories.map(c=>`<option>${c}</option>`).join('');ticketAsset.innerHTML='<option value="">Nenhum</option>'+assets.map(a=>`<option value="${a.id}">${a.id} - ${a.nome}</option>`).join('');}
-function showPage(id){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active-page'));$(id).classList.add('active-page');document.querySelectorAll('.nav-btn').forEach(b=>b.classList.toggle('active',b.dataset.page===id));const titles={dashboard:'Dashboard Executivo',tickets:'Chamados',newTicket:'Novo Chamado',kanban:'Kanban',serviceCatalog:'Catálogo de Serviços',assets:'Ativos TI / CMDB',knowledge:'Base de Conhecimento',reports:'Relatórios',settings:'Configurações'};pageTitle.textContent=titles[id];pageSubtitle.textContent=titles[id];renderAll();}
+function showPage(id){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active-page'));$(id).classList.add('active-page');document.querySelectorAll('.nav-btn').forEach(b=>b.classList.toggle('active',b.dataset.page===id));const titles={dashboard:'Dashboard Executivo',tickets:'Chamados',ticketDetail:'Chamado 360°',newTicket:'Novo Chamado',kanban:'Kanban',serviceCatalog:'Catálogo de Serviços',assets:'Ativos TI / CMDB',knowledge:'Base de Conhecimento',reports:'Relatórios',settings:'Configurações'};pageTitle.textContent=titles[id]||'Tosi Support Pro';pageSubtitle.textContent=titles[id]||'';renderAll();}
 function filteredTickets(){const q=globalSearch.value?.toLowerCase().trim()||'';return tickets.filter(t=>(!q||[t.id,t.title,t.requester,t.sector,t.category,t.status,t.asset].join(' ').toLowerCase().includes(q))&&(!filterSector.value||t.sector===filterSector.value)&&(!filterCategory.value||t.category===filterCategory.value)&&(!filterPriority.value||t.priority===filterPriority.value)&&(!filterStatus.value||t.status===filterStatus.value)&&(!filterSla.value||(filterSla.value==='late'?isLate(t):!isLate(t))))}
 function counts(data=tickets){return{total:data.length,open:data.filter(t=>t.status==='Aberto').length,work:data.filter(t=>t.status==='Em atendimento').length,wait:data.filter(t=>t.status==='Aguardando usuário').length,done:data.filter(isClosed).length,late:data.filter(isLate).length}}
 function setText(id,v){const e=$(id); if(e)e.textContent=v}
@@ -102,10 +102,10 @@ window.openTicket=id=>{
   const userTickets=tickets.filter(x=>x.requester===t.requester && x.id!==t.id).slice(0,4);
   const assetTickets=t.asset?tickets.filter(x=>x.asset===t.asset && x.id!==t.id).slice(0,4):[];
   const cost = ticketCost(t);
-  modalContent.innerHTML=`
-  <div class="ticket-360">
+  ticketDetailContent.innerHTML=`
+  <div class="ticket-360 ticket-360-page">
     <div class="t360-command">
-      <button class="back-btn" onclick="ticketModal.close()">← Voltar</button>
+      <button class="back-btn" onclick="showPage('tickets')">← Voltar aos chamados</button>
       <div class="t360-title">
         <div class="ticket-kicker"><span>${esc(t.id)}</span><span>${esc(t.type)}</span><span class="badge ${esc(t.priority)}">${esc(t.priority)}</span><span class="badge status">${esc(t.status)}</span></div>
         <h2>${esc(t.title)}</h2>
@@ -119,7 +119,27 @@ window.openTicket=id=>{
       </div>
     </div>
 
-    <div class="t360-actions">
+    <div class="t360-progress">
+      <div class="step done"><span>1</span><strong>Novo</strong><small>Entrada</small></div>
+      <i></i>
+      <div class="step ${['Em atendimento','Aguardando usuário','Resolvido','Fechado'].includes(t.status)?'done':'active'}"><span>2</span><strong>Triagem</strong><small>Classificação</small></div>
+      <i></i>
+      <div class="step ${['Em atendimento','Aguardando usuário'].includes(t.status)?'active':isClosed(t)?'done':''}"><span>3</span><strong>Atendimento</strong><small>Suporte técnico</small></div>
+      <i></i>
+      <div class="step ${t.status==='Aguardando usuário'?'active':isClosed(t)?'done':''}"><span>4</span><strong>Validação</strong><small>Usuário</small></div>
+      <i></i>
+      <div class="step ${isClosed(t)?'done active':''}"><span>5</span><strong>Encerramento</strong><small>Resolvido</small></div>
+    </div>
+
+    <div class="t360-mini-kpis">
+      <div><small>Tempo aberto</small><strong>${ticketAge(t)}</strong></div>
+      <div><small>SLA consumido</small><strong>${pct}%</strong></div>
+      <div><small>Responsável</small><strong>${esc(t.responsible||'Service Desk')}</strong></div>
+      <div><small>Anexos</small><strong>${(t.attachments||[]).length}</strong></div>
+      <div><small>Interações</small><strong>${(t.history||[]).length+2}</strong></div>
+    </div>
+
+    <div class="t360-actions enterprise-actions">
       <button class="primary" onclick="updateTicket('${esc(t.id)}')">Salvar resposta</button>
       <button class="ghost" onclick="quickStatus('${esc(t.id)}','Em atendimento')">Assumir</button>
       <button class="ghost" onclick="quickStatus('${esc(t.id)}','Aguardando usuário')">Aguardar usuário</button>
@@ -176,7 +196,7 @@ window.openTicket=id=>{
       </aside>
     </div>
   </div>`;
-  if(!ticketModal.open) ticketModal.showModal()
+  showPage('ticketDetail')
 }
 function ticketCost(t){const map={Baixa:120,Média:420,Alta:1250,Crítica:4800};const hours={Baixa:1,Média:2,Alta:4,Crítica:8}[t.priority]||2;const parts=t.asset?({Impressoras:180,Hardware:260,'Manutenção TI':600}[t.category]||90):0;const hourValue=95;const impact=map[t.priority]||420;const total=hours*hourValue+parts+impact;return{hours,parts,hourValue,impact,total}}
 function conversationHtml(t){const list=[{who:t.requester,side:'user',txt:t.description,time:fmt(t.createdAt)},{who:t.responsible||'Service Desk',side:'agent',txt:(t.history&&t.history[1])?'Recebemos o chamado e iniciamos a análise técnica.':'Chamado recebido para triagem técnica.',time:fmt(t.updatedAt)}];return `<div class="chat-flow">${list.map(m=>`<div class="chat-msg ${m.side}"><div><strong>${esc(m.who)}</strong><p>${esc(m.txt)}</p><small>${esc(m.time)}</small></div></div>`).join('')}</div>`}
