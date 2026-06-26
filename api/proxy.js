@@ -247,6 +247,37 @@ async function updateTicket(protocolOrId, body){
   await createAudit('ticket', protocolOrId, 'ticket.updated', patch);
   return Array.isArray(rows)?rows[0]:rows;
 }
+
+async function createApproval(body){
+  const row={
+    title:body.title,
+    requester_name:body.requester_name||body.requester||null,
+    status:body.status||'Pendente',
+    amount:body.amount??body.value??0,
+    priority:body.priority||'Média',
+    payload:body.payload||{
+      type:body.type||'Solicitação TI', department:body.department||'', approver:body.approver||'',
+      ticket:body.ticket||'', asset:body.asset||'', impact:body.impact||'Médio', reason:body.reason||'', risk:body.risk||'', steps:body.steps||[]
+    }
+  };
+  const inserted=await supabaseRest('approvals',{method:'POST',body:JSON.stringify(row)});
+  const approval=Array.isArray(inserted)?inserted[0]:inserted;
+  await createAudit('approval', approval?.id || row.title, 'approval.created', row);
+  return approval;
+}
+async function updateApproval(id, body){
+  const patch={};
+  if(body.status) patch.status=body.status;
+  if(body.title) patch.title=body.title;
+  if(body.amount!==undefined || body.value!==undefined) patch.amount=body.amount??body.value;
+  if(body.priority) patch.priority=body.priority;
+  if(body.payload) patch.payload=body.payload;
+  patch.updated_at=new Date().toISOString();
+  const rows=await supabaseRest(`approvals?id=eq.${encodeURIComponent(id)}`,{method:'PATCH',body:JSON.stringify(patch)});
+  await createAudit('approval', id, 'approval.updated', patch);
+  return Array.isArray(rows)?rows[0]:rows;
+}
+
 async function createAsset(body){
   const row={
     asset_tag:body.asset_tag||body.id,
@@ -309,6 +340,16 @@ export default async function handler(req, res) {
       if(req.method==='POST') return res.status(200).json({ok:true,asset:await createAsset(await readJsonBody(req))});
       return res.status(405).json({ok:false,error:'Método não permitido'});
     } catch(e){ return res.status(500).json({ok:false,error:'Falha nos ativos',details:e.message}); }
+  }
+
+  if (route.includes('/approvals')) {
+    try {
+      if(!hasSupabase()) return res.status(503).json({ok:false,error:'Supabase não configurado. Defina SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY.'});
+      if(req.method==='GET') return res.status(200).json({ok:true,approvals:await dbSelect('approvals','select=*&order=created_at.desc')});
+      if(req.method==='POST') return res.status(200).json({ok:true,approval:await createApproval(await readJsonBody(req))});
+      if(req.method==='PATCH') { const body=await readJsonBody(req); return res.status(200).json({ok:true,approval:await updateApproval(body.id,body)}); }
+      return res.status(405).json({ok:false,error:'Método não permitido'});
+    } catch(e){ return res.status(500).json({ok:false,error:'Falha nas aprovações',details:e.message}); }
   }
   if (route.includes('/noc-snapshot')) {
     try {

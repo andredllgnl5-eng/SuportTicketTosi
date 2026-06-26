@@ -5,6 +5,7 @@ const categories=['Suporte Técnico','Acesso / Senha','Rede / Internet','Impress
 const statusList=['Aberto','Em atendimento','Aguardando usuário','Resolvido','Fechado'];
 const users=[{name:'Administrador',email:'admin@tosi.com.br',role:'ADM',sector:'TI'},{name:'Carlos Oliveira',email:'carlos@tosi.com.br',role:'Atendente N2',sector:'TI'},{name:'Ana Paula',email:'ana@tosi.com.br',role:'Gestora',sector:'TI'},{name:'João da Silva',email:'joao@tosi.com.br',role:'Usuário',sector:'PCP'}];
 let assets=[];
+let approvals=[];
 
 const assetExtras={
  'AT-0001':{brand:'Dell',model:'Latitude 5420',serial:'DL5420-PCP-001',os:'Windows 11 Pro',cpu:'Intel Core i7',ram:'16 GB',disk:'512 GB SSD',ip:'192.168.10.41',mac:'A4:5E:60:10:21:01',vendor:'Dell Brasil',nf:'NF-18452',purchase:'14/01/2024',value:6200,availability:'99,5%',lastMaint:'18 dias atrás',photo:'💻',software:['Windows 11 Pro','Microsoft 365','Chrome','AnyDesk','Antivírus','ERP Client'],licenses:['Windows OEM','Microsoft 365 Business','Antivírus Endpoint'],docs:['Nota fiscal','Termo de responsabilidade','Garantia Dell','Manual do usuário']},
@@ -96,16 +97,56 @@ function normalizeAsset(row){
     garantia: row.warranty_until ? new Date(row.warranty_until).toLocaleDateString('pt-BR',{month:'2-digit',year:'numeric'}) : (row.garantia || '-')
   }
 }
+
+function normalizeApproval(row){
+  const payload=row.payload || {};
+  return {
+    id: row.approval_code || payload.approval_code || row.id,
+    uuid: row.id,
+    title: row.title || payload.title || 'Aprovação sem título',
+    type: row.type || payload.type || payload.category || 'Solicitação TI',
+    requester: row.requester_name || payload.requester || 'Não informado',
+    department: row.department || payload.department || '-',
+    approver: row.approver_name || payload.approver || 'Não definido',
+    value: Number(row.amount ?? payload.value ?? 0),
+    impact: row.impact || payload.impact || 'Médio',
+    priority: row.priority || payload.priority || 'Média',
+    status: row.status || 'Pendente',
+    ticket: row.ticket_protocol || payload.ticket || '-',
+    asset: row.asset_tag || payload.asset || '-',
+    sla: row.sla_label || payload.sla || '-',
+    createdAt: row.created_at || new Date().toISOString(),
+    reason: row.reason || payload.reason || 'Solicitação registrada no banco de dados.',
+    steps: Array.isArray(payload.steps) ? payload.steps : ['Solicitação recebida','Aguardando decisão','Registrar auditoria'],
+    risk: row.risk || payload.risk || 'Aguardando análise do aprovador.'
+  };
+}
+async function fetchApprovals(){
+  const data=await api('/approvals');
+  approvals=(data.approvals||[]).map(normalizeApproval);
+  selectedApprovalId=approvals[0]?.id || null;
+}
+async function sendApprovalDecision(id,status){
+  const a=approvals.find(x=>x.id===id || x.uuid===id);
+  if(!a) return;
+  const data=await api('/approvals',{method:'PATCH',body:JSON.stringify({id:a.uuid||a.id,status})});
+  const updated=normalizeApproval(data.approval||{});
+  approvals=approvals.map(x=>(x.id===id||x.uuid===id)?updated:x);
+  selectedApprovalId=updated.id;
+}
+
 async function loadFromBackend(){
   try{
     const data=await api('/bootstrap');
     tickets=(data.tickets||[]).map(normalizeTicket);
     assets=(data.assets||[]).map(normalizeAsset);
+    approvals=(data.approvals||[]).map(normalizeApproval);
+    selectedApprovalId=approvals[0]?.id || null;
     if(data.user) appUser=data.user;
     backendReady=!!data.connected;
     if(!backendReady) showSystemNotice('Supabase ainda não configurado. Dados demo foram removidos; configure as variáveis para carregar dados reais.');
   }catch(e){
-    tickets=[]; assets=[]; backendReady=false;
+    tickets=[]; assets=[]; approvals=[]; selectedApprovalId=null; backendReady=false;
     showSystemNotice('Não foi possível conectar ao back-end/Supabase: '+e.message);
   }
 }
@@ -318,40 +359,36 @@ function renderWorkflowAnalytics(byStage){if(!window.workflowAnalytics)return;co
 
 
 
-// Sprint 17 - Central de Aprovações + Notificações Enterprise
-const defaultApprovals=[
- {id:'APR-2026-001',title:'Compra de notebook para João da Silva',type:'Compra de equipamento',requester:'João da Silva',department:'PCP',approver:'Ana Paula',value:6800,impact:'Alto',priority:'Alta',status:'Pendente',ticket:'CH-2026-0256',asset:'AT-0001',sla:'02h 15m',createdAt:plus(-4),reason:'Notebook atual apresenta falhas recorrentes e impacta apontamentos de produção.',steps:['Solicitação criada no Portal do Usuário','Gestor do setor notificado','Aguardando aprovação da TI','Após aprovação, encaminhar para Compras'],risk:'Parada operacional no PCP e atraso na emissão de OPs.'},
- {id:'APR-2026-002',title:'Liberação de acesso VPN',type:'Acesso',requester:'Maria Santos',department:'Compras',approver:'Carlos Oliveira',value:0,impact:'Médio',priority:'Média',status:'Pendente',ticket:'CH-2026-0255',asset:'-',sla:'05h 40m',createdAt:plus(-8),reason:'Usuária precisa acessar ERP fora da rede corporativa para fechamento de pedidos.',steps:['Validar vínculo do usuário','Confirmar necessidade com gestor','Liberar grupo VPN','Registrar auditoria'],risk:'Acesso remoto deve seguir regra de segurança e MFA.'},
- {id:'APR-2026-003',title:'Instalação de software SolidWorks Viewer',type:'Software',requester:'Fernanda Lima',department:'Financeiro',approver:'Ana Paula',value:0,impact:'Baixo',priority:'Baixa',status:'Aprovado',ticket:'CH-2026-0251',asset:'AT-0005',sla:'Concluído',createdAt:plus(-20),reason:'Consulta de desenhos enviados pela engenharia.',steps:['Solicitação validada','Licença gratuita confirmada','Instalação liberada','Chamado encaminhado para execução'],risk:'Baixo risco por ser viewer sem edição.'},
- {id:'APR-2026-004',title:'Troca emergencial de servidor interno',type:'Mudança crítica',requester:'Service Desk',department:'TI',approver:'Diretoria',value:42800,impact:'Crítico',priority:'Crítica',status:'Pendente',ticket:'CH-2026-0250',asset:'AT-0003',sla:'00h 45m',createdAt:plus(-1),reason:'Servidor de aplicações com alertas críticos de disco e risco de indisponibilidade.',steps:['Aprovação da diretoria','Janela de manutenção','Backup completo','Execução assistida','Validação pós-mudança'],risk:'Indisponibilidade de sistemas internos e impacto financeiro.'}
-];
-let approvals=JSON.parse(localStorage.getItem(KEY+'-approvals')||'null')||defaultApprovals;
-let selectedApprovalId=approvals[0]?.id;
+
+// Sprint 17 - Central de Aprovações + Notificações Enterprise (dados reais/Supabase)
+let selectedApprovalId=null;
 const notificationSeed=[
- ['SLA','CH-2026-0250 com SLA vencido','Alta prioridade','danger'],
- ['Aprovação','Compra de notebook aguardando gestor','APR-2026-001','warn'],
- ['Chamado','Carlos respondeu CH-2026-0256','há 8 min','ok'],
- ['CMDB','Garantia da impressora AT-0002 vence em breve','30 dias','warn'],
- ['Segurança','Solicitação VPN requer validação MFA','APR-2026-002','info']
+ ['Sistema','Banco real aguardando configuração','Supabase','info']
 ];
-function saveApprovals(){localStorage.setItem(KEY+'-approvals',JSON.stringify(approvals))}
+function saveApprovals(){}
 function renderApprovals(){
  if(!window.approvalList)return;
  const filter=window.approvalFilter?.value||'';
  const list=approvals.filter(a=>!filter||a.status===filter);
  const pending=approvals.filter(a=>a.status==='Pendente').length, approved=approvals.filter(a=>a.status==='Aprovado').length, rejected=approvals.filter(a=>a.status==='Rejeitado').length, value=approvals.filter(a=>a.status==='Pendente').reduce((n,a)=>n+(+a.value||0),0);
  approvalKpis.innerHTML=`<div class="approval-kpi blue"><small>Pendentes</small><strong>${pending}</strong><span>aguardando decisão</span></div><div class="approval-kpi green"><small>Aprovadas</small><strong>${approved}</strong><span>liberadas</span></div><div class="approval-kpi red"><small>Rejeitadas</small><strong>${rejected}</strong><span>com justificativa</span></div><div class="approval-kpi orange"><small>Valor em aprovação</small><strong>${money(value)}</strong><span>impacto financeiro</span></div>`;
- approvalList.innerHTML=list.map(a=>`<button class="approval-card ${a.id===selectedApprovalId?'active':''}" onclick="selectApproval('${esc(a.id)}')"><div><span class="approval-type">${esc(a.type)}</span><h4>${esc(a.title)}</h4><p>${esc(a.reason)}</p><div class="approval-meta"><span>${esc(a.requester)}</span><span>${esc(a.department)}</span><span>${esc(a.ticket)}</span></div></div><aside><b class="badge ${esc(a.priority)}">${esc(a.priority)}</b><strong>${money(a.value)}</strong><small>SLA ${esc(a.sla)}</small><em class="approval-status ${esc(a.status)}">${esc(a.status)}</em></aside></button>`).join('')||'<div class="empty-state">Nenhuma aprovação encontrada.</div>';
+ if(!approvals.length){
+   approvalList.innerHTML='<div class="empty-state"><strong>Nenhuma aprovação encontrada.</strong><p>Quando o Supabase estiver configurado e houver solicitações reais, elas aparecerão nesta fila.</p></div>';
+   selectedApprovalId=null;
+   renderApprovalDetail();renderApprovalAnalytics();renderApprovalTimeline();renderApprovalPolicies();
+   return;
+ }
+ if(!selectedApprovalId || !approvals.some(a=>a.id===selectedApprovalId)) selectedApprovalId=approvals[0]?.id || null;
+ approvalList.innerHTML=list.map(a=>`<button class="approval-card ${a.id===selectedApprovalId?'active':''}" onclick="selectApproval('${esc(a.id)}')"><div><span class="approval-type">${esc(a.type)}</span><h4>${esc(a.title)}</h4><p>${esc(a.reason)}</p><div class="approval-meta"><span>${esc(a.requester)}</span><span>${esc(a.department)}</span><span>${esc(a.ticket)}</span></div></div><aside><b class="badge ${esc(a.priority)}">${esc(a.priority)}</b><strong>${money(a.value)}</strong><small>SLA ${esc(a.sla)}</small><em class="approval-status ${esc(a.status)}">${esc(a.status)}</em></aside></button>`).join('')||'<div class="empty-state">Nenhuma aprovação encontrada para este filtro.</div>';
  renderApprovalDetail();renderApprovalAnalytics();renderApprovalTimeline();renderApprovalPolicies();
 }
 function currentApproval(){return approvals.find(a=>a.id===selectedApprovalId)||approvals[0]}
 window.selectApproval=id=>{selectedApprovalId=id;renderApprovals()}
-function renderApprovalDetail(){if(!window.approvalDetail)return;const a=currentApproval();if(!a){approvalDetail.innerHTML='<p>Nenhuma aprovação selecionada.</p>';return} approvalDetail.innerHTML=`<span class="eyebrow">Aprovação 360°</span><h3>${esc(a.id)}</h3><h4>${esc(a.title)}</h4><div class="approval-decision"><button class="primary" onclick="decideApproval('${esc(a.id)}','Aprovado')">✓ Aprovar</button><button class="danger-btn" onclick="decideApproval('${esc(a.id)}','Rejeitado')">✕ Rejeitar</button></div><div class="approval-info"><p><span>Solicitante</span><b>${esc(a.requester)}</b></p><p><span>Aprovador</span><b>${esc(a.approver)}</b></p><p><span>Departamento</span><b>${esc(a.department)}</b></p><p><span>Chamado</span><b>${esc(a.ticket)}</b></p><p><span>Ativo</span><b>${esc(a.asset)}</b></p><p><span>Impacto</span><b>${esc(a.impact)}</b></p><p><span>Valor</span><b>${money(a.value)}</b></p><p><span>Status</span><b>${esc(a.status)}</b></p></div><div class="approval-risk"><strong>Risco / justificativa</strong><p>${esc(a.risk)}</p></div><h4>Fluxo de aprovação</h4><div class="approval-steps">${a.steps.map((st,i)=>`<div><span>${i+1}</span><p>${esc(st)}</p></div>`).join('')}</div>`}
-window.decideApproval=(id,status)=>{const a=approvals.find(x=>x.id===id);if(!a)return;a.status=status;a.sla=status==='Aprovado'?'Concluído':'Encerrado';const t=tickets.find(x=>x.id===a.ticket);if(t){t.history=t.history||[];t.history.push(`Aprovação ${a.id}: ${status}`);t.updatedAt=new Date().toISOString()}saveApprovals();saveAll();renderApprovals();renderAll()}
-window.createApprovalDemo=()=>{const id='APR-2026-'+String(approvals.length+1).padStart(3,'0');approvals.unshift({id,title:'Nova solicitação aguardando aprovação',type:'Solicitação TI',requester:'Usuário final',department:'TI',approver:'Gestor TI',value:0,impact:'Médio',priority:'Média',status:'Pendente',ticket:tickets[0]?.id||'-',asset:'-',sla:'08h 00m',createdAt:new Date().toISOString(),reason:'Solicitação criada para demonstração do fluxo Enterprise.',steps:['Solicitação recebida','Validar responsável','Aprovar ou rejeitar','Registrar auditoria'],risk:'Requer validação antes da execução.'});selectedApprovalId=id;saveApprovals();renderApprovals()}
-window.resetApprovalsDemo=()=>{approvals=JSON.parse(JSON.stringify(defaultApprovals));selectedApprovalId=approvals[0].id;saveApprovals();renderApprovals()}
-function renderApprovalAnalytics(){if(!window.approvalAnalytics)return;const by={};approvals.forEach(a=>by[a.approver]=(by[a.approver]||0)+1);const max=Math.max(1,...Object.values(by));approvalAnalytics.innerHTML=Object.entries(by).map(([k,v])=>`<div class="analytics-row"><span>${esc(k)}</span><i><b style="width:${v/max*100}%"></b></i><strong>${v}</strong></div>`).join('')+`<div class="approval-mini-note">Tempo médio de aprovação: <b>3h 18m</b></div>`}
-function renderApprovalTimeline(){if(!window.approvalTimeline)return;approvalTimeline.innerHTML=approvals.slice(0,5).map(a=>`<div class="approval-event"><span>${esc(a.status)}</span><div><strong>${esc(a.id)}</strong><p>${esc(a.title)}</p></div><small>${esc(a.sla)}</small></div>`).join('')}
+function renderApprovalDetail(){if(!window.approvalDetail)return;const a=currentApproval();if(!a){approvalDetail.innerHTML='<div class="empty-state"><strong>Nenhuma aprovação selecionada.</strong><p>Cadastre aprovações reais no Supabase ou crie solicitações pelo fluxo do sistema.</p></div>';return} approvalDetail.innerHTML=`<span class="eyebrow">Aprovação 360°</span><h3>${esc(a.id)}</h3><h4>${esc(a.title)}</h4><div class="approval-decision"><button class="primary" onclick="decideApproval('${esc(a.id)}','Aprovado')">✓ Aprovar</button><button class="danger-btn" onclick="decideApproval('${esc(a.id)}','Rejeitado')">✕ Rejeitar</button></div><div class="approval-info"><p><span>Solicitante</span><b>${esc(a.requester)}</b></p><p><span>Aprovador</span><b>${esc(a.approver)}</b></p><p><span>Departamento</span><b>${esc(a.department)}</b></p><p><span>Chamado</span><b>${esc(a.ticket)}</b></p><p><span>Ativo</span><b>${esc(a.asset)}</b></p><p><span>Impacto</span><b>${esc(a.impact)}</b></p><p><span>Valor</span><b>${money(a.value)}</b></p><p><span>Status</span><b>${esc(a.status)}</b></p></div><div class="approval-risk"><strong>Risco / justificativa</strong><p>${esc(a.risk)}</p></div><h4>Fluxo de aprovação</h4><div class="approval-steps">${a.steps.map((st,i)=>`<div><span>${i+1}</span><p>${esc(st)}</p></div>`).join('')}</div>`}
+window.decideApproval=async(id,status)=>{try{await sendApprovalDecision(id,status);await refreshData();showPage('approvals')}catch(e){alert('Não foi possível atualizar aprovação: '+e.message)}}
+window.createRealApproval=()=>{alert('Nova aprovação deve ser criada a partir de uma solicitação real ou via Supabase/API. O modo demo foi removido.')}
+function renderApprovalAnalytics(){if(!window.approvalAnalytics)return;if(!approvals.length){approvalAnalytics.innerHTML='<div class="empty-state">Sem dados reais para analytics.</div>';return}const by={};approvals.forEach(a=>by[a.approver]=(by[a.approver]||0)+1);const max=Math.max(1,...Object.values(by));approvalAnalytics.innerHTML=Object.entries(by).map(([k,v])=>`<div class="analytics-row"><span>${esc(k)}</span><i><b style="width:${v/max*100}%"></b></i><strong>${v}</strong></div>`).join('')+`<div class="approval-mini-note">Dados calculados a partir do banco real.</div>`}
+function renderApprovalTimeline(){if(!window.approvalTimeline)return;approvalTimeline.innerHTML=approvals.length?approvals.slice(0,5).map(a=>`<div class="approval-event"><span>${esc(a.status)}</span><div><strong>${esc(a.id)}</strong><p>${esc(a.title)}</p></div><small>${esc(a.sla)}</small></div>`).join(''):'<div class="empty-state">Nenhum evento de aprovação no banco.</div>'}
 function renderApprovalPolicies(){if(!window.approvalPolicies)return;approvalPolicies.innerHTML=['Compra acima de R$ 5.000 exige gestor + financeiro','Acesso remoto exige MFA e aprovação de TI','Mudança crítica exige janela e plano de rollback','Software não homologado exige análise de segurança'].map(p=>`<div class="policy-item">✓ ${esc(p)}</div>`).join('')}
 function renderNotificationBadges(){const pending=approvals?approvals.filter(a=>a.status==='Pendente').length:0; if(window.mailBadge)mailBadge.textContent=Math.max(1,pending); if(window.alertBadge)alertBadge.textContent=tickets.filter(isLate).length+pending;}
 window.toggleNotificationCenter=()=>{const el=window.notificationCenter;if(!el)return;el.classList.toggle('hidden');renderNotificationCenter()}

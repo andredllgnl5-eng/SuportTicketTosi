@@ -88,3 +88,11 @@ SPRINT 21 - Banco Real + Supabase
 - Rode schema.sql no Supabase antes do deploy.
 - Configure na Vercel: SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY.
 - Enquanto o Supabase não estiver configurado, o sistema fica vazio e exibe aviso de banco real.
+
+SPRINT 21.1 - Limpeza real de aprovações
+- Removidos dados demo do módulo Aprovações.
+- Removido botão Restaurar demo.
+- Aprovações agora carregam apenas do Supabase via /api/approvals.
+- Se não houver dados reais, a tela mostra estado vazio.
+- Adicionados endpoints GET/POST/PATCH para aprovações.
+- Schema atualizado com campos adicionais e índices para aprovações reais.

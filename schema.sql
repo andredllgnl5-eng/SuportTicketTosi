@@ -123,3 +123,18 @@ create index if not exists idx_assets_tag on assets(asset_tag);
 insert into profiles (name,email,role,sector)
 values ('Administrador','admin@tosi.com.br','ADM','TI')
 on conflict (email) do update set name=excluded.name, role=excluded.role, sector=excluded.sector, updated_at=now();
+
+
+-- Campos adicionais para Aprovações Enterprise reais
+alter table approvals add column if not exists approval_code text;
+alter table approvals add column if not exists type text;
+alter table approvals add column if not exists department text;
+alter table approvals add column if not exists approver_name text;
+alter table approvals add column if not exists ticket_protocol text;
+alter table approvals add column if not exists asset_tag text;
+alter table approvals add column if not exists impact text;
+alter table approvals add column if not exists reason text;
+alter table approvals add column if not exists risk text;
+alter table approvals add column if not exists sla_label text;
+create index if not exists idx_approvals_status on approvals(status);
+create index if not exists idx_approvals_created_at on approvals(created_at desc);
