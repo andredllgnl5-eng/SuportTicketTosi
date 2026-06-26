@@ -1,0 +1,25 @@
+Sprint 19 - Central NOC Enterprise
+
+Implementado:
+- Novo menu: Central NOC.
+- Painel Network Operations Center para monitoramento de TI.
+- KPIs de saúde operacional, serviços monitorados, alertas, backlog, ativos em risco e disponibilidade.
+- Serviços críticos com status online/atenção/crítico.
+- SLA ao vivo com gauge.
+- Links de internet e rede.
+- Status Microsoft 365 / Cloud.
+- Firewall / segurança com bloqueios, CPU, RAM e sessões.
+- Impressoras monitoradas.
+- Mapa da empresa por áreas.
+- Linha do tempo operacional.
+- Recomendações operacionais.
+- Modo TV para exibição em tela grande.
+
+Como testar:
+1. Rode o projeto.
+2. Entre com admin@tosi.com.br / 123456.
+3. Clique no menu Central NOC.
+4. Clique em Modo TV para abrir o painel de monitoramento em tela separada.
+
+Observação:
+Esta sprint entrega a interface e lógica local/demo. Integrações reais com Zabbix, Grafana, Microsoft 365, firewall, impressoras e links devem ser conectadas na fase de back-end/integrações.

@@ -52,3 +52,19 @@ SPRINT 14: Portal do Usuário Premium implementado. Acesse pelo menu "Portal do 
 
 
 SPRINT 18: Business Intelligence Enterprise implementado. Acesse pelo menu Business Intelligence. Inclui KPIs executivos, saúde da TI, heatmap, ranking de técnicos, custos, ativos, exportações e modo TV/NOC.
+
+
+SPRINT 19: Central NOC Enterprise implementada. Acesse pelo menu "Central NOC". Inclui monitoramento visual de serviços, rede, Microsoft 365, firewall, impressoras, mapa da empresa, linha do tempo, recomendações e Modo TV.
+
+
+SPRINT 19 - Central NOC Enterprise
+- Adicionado menu Central NOC.
+- Painel de monitoramento visual com serviços críticos, SLA ao vivo, rede, Microsoft 365, firewall, impressoras, mapa da empresa e timeline operacional.
+- Adicionado Modo TV para exibição em tela grande.
+- Dados locais/demo integrados ao dashboard, chamados e CMDB.
+
+Como testar:
+1. Rode npm install e npm run dev.
+2. Acesse com admin@tosi.com.br / 123456.
+3. Clique no menu Central NOC.
+4. Use o botão Modo TV para abrir o painel de monitoramento.
