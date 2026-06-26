@@ -39,3 +39,10 @@ Próxima etapa:
 - Criar autenticação com cookie HttpOnly
 - Salvar chamados no banco
 - Upload real no Supabase Storage
+
+SPRINT 12 - Workflow Enterprise
+- Adicionado menu Workflow.
+- Criado board visual de fluxo ITSM com etapas configuráveis.
+- Chamados podem ser arrastados entre etapas; status e histórico são atualizados.
+- Adicionadas regras automáticas demonstrativas, analytics por etapa, KPIs e painel de configuração da etapa.
+- Versão visual: v12.0 Workflow Enterprise.

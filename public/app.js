@@ -1,5 +1,5 @@
 const $=id=>document.getElementById(id);
-const KEY='tosi-support-pro-v10';
+const KEY='tosi-support-pro-v12';
 const departments=['TI','Compras','Manutenção','Qualidade','RH','Produção','Engenharia','Financeiro'];
 const categories=['Suporte Técnico','Acesso / Senha','Rede / Internet','Impressoras','ERP / Sistemas','Hardware','Software','E-mail / Microsoft 365','Segurança da Informação','Solicitação','Manutenção TI','Bug / Sistema'];
 const statusList=['Aberto','Em atendimento','Aguardando usuário','Resolvido','Fechado'];
@@ -37,7 +37,7 @@ let tickets=JSON.parse(localStorage.getItem(KEY)||'null')||[
 {id:'CH-2026-0251',title:'Solicitação de EPI para técnico externo',requester:'Fernanda Lima',sector:'RH',category:'Solicitação',priority:'Baixa',status:'Fechado',type:'Requisição',asset:'',impact:'Baixo',createdAt:nowMinus(55),updatedAt:nowMinus(50),slaDueAt:nowMinus(45),closedAt:nowMinus(50),responsible:'Service Desk',attachments:[],description:'Solicitação encerrada.',history:['Chamado aberto','Finalizado']},
 {id:'CH-2026-0250',title:'Falha no login do portal interno',requester:'Paulo Henrique',sector:'TI',category:'Bug / Sistema',priority:'Alta',status:'Em atendimento',type:'Problema',asset:'',impact:'Crítico',createdAt:nowMinus(80),updatedAt:nowMinus(78),slaDueAt:nowMinus(10),responsible:'Ana Paula',attachments:['erro-login.png'],description:'Usuários relatam erro intermitente no portal interno.',history:['Chamado aberto','Escalado para sistemas']}
 ];
-const navItems=[['dashboard','⌂','Dashboard'],['tickets','▣','Chamados'],['newTicket','＋','Novo Chamado'],['kanban','▦','Kanban'],['serviceCatalog','◈','Catálogo de Serviços'],['assets','▥','Ativos TI / CMDB'],['knowledge','▤','Base de Conhecimento'],['reports','▧','Relatórios'],['settings','⚙','Configurações']];
+const navItems=[['dashboard','⌂','Dashboard'],['tickets','▣','Chamados'],['newTicket','＋','Novo Chamado'],['kanban','▦','Kanban'],['workflow','⟲','Workflow'],['serviceCatalog','◈','Catálogo de Serviços'],['assets','▥','Ativos TI / CMDB'],['knowledge','▤','Base de Conhecimento'],['reports','▧','Relatórios'],['settings','⚙','Configurações']];
 function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
 function saveAll(){localStorage.setItem(KEY,JSON.stringify(tickets))}
 function fmtDate(v){return new Date(v).toLocaleDateString('pt-BR')}function fmt(v){return new Date(v).toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'})}
@@ -45,11 +45,11 @@ function isClosed(t){return ['Resolvido','Fechado'].includes(t.status)}function 
 function slaPercent(t){if(isClosed(t))return 100;const start=new Date(t.createdAt),due=new Date(t.slaDueAt),now=new Date();const total=due-start;if(total<=0)return 100;return Math.max(0,Math.min(100,Math.round((now-start)/total*100)))}
 function init(){nav.innerHTML=navItems.map(([id,ic,label])=>`<button class="nav-btn" data-page="${id}"><span>${ic}</span>${label}</button>`).join('');document.querySelectorAll('.nav-btn').forEach(b=>b.onclick=()=>showPage(b.dataset.page));loginForm.onsubmit=e=>{e.preventDefault();loginScreen.classList.add('hidden');app.classList.remove('hidden');renderAll();};logoutBtn.onclick=()=>{app.classList.add('hidden');loginScreen.classList.remove('hidden')};themeBtn.onclick=()=>document.body.classList.toggle('dark');exportBtn.onclick=openReportCenter;printReportBtn.onclick=generateReportWindow;reportBtn.onclick=renderReports;ticketForm.onsubmit=createTicket;globalSearch.oninput=()=>{if(document.querySelector('#tickets.active-page'))renderTicketsTable()};['filterSector','filterCategory','filterPriority','filterStatus','filterSla'].forEach(id=>$(id).onchange=renderTicketsTable);fillOptions();showPage('dashboard');renderAll();}
 function fillOptions(){filterSector.innerHTML='<option value="">Todos</option>'+departments.map(d=>`<option>${d}</option>`).join('');filterCategory.innerHTML='<option value="">Todas</option>'+categories.map(c=>`<option>${c}</option>`).join('');filterStatus.innerHTML='<option value="">Todos</option>'+statusList.map(s=>`<option>${s}</option>`).join('');ticketSector.innerHTML=departments.map(d=>`<option>${d}</option>`).join('');ticketCategory.innerHTML=categories.map(c=>`<option>${c}</option>`).join('');ticketAsset.innerHTML='<option value="">Nenhum</option>'+assets.map(a=>`<option value="${a.id}">${a.id} - ${a.nome}</option>`).join('');}
-function showPage(id){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active-page'));$(id).classList.add('active-page');document.querySelectorAll('.nav-btn').forEach(b=>b.classList.toggle('active',b.dataset.page===id));const titles={dashboard:'Dashboard Executivo',tickets:'Chamados',ticketDetail:'Chamado 360°',newTicket:'Novo Chamado',kanban:'Kanban',serviceCatalog:'Catálogo de Serviços',assets:'CMDB Enterprise',knowledge:'Base de Conhecimento',reports:'Relatórios',settings:'Configurações',assetDetail:'Ativo 360°'};pageTitle.textContent=titles[id]||'Tosi Support Pro';pageSubtitle.textContent=titles[id]||'';renderAll();}
+function showPage(id){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active-page'));$(id).classList.add('active-page');document.querySelectorAll('.nav-btn').forEach(b=>b.classList.toggle('active',b.dataset.page===id));const titles={dashboard:'Dashboard Executivo',tickets:'Chamados',ticketDetail:'Chamado 360°',newTicket:'Novo Chamado',kanban:'Kanban',serviceCatalog:'Catálogo de Serviços',assets:'CMDB Enterprise',knowledge:'Base de Conhecimento',reports:'Relatórios',settings:'Configurações',assetDetail:'Ativo 360°',workflow:'Workflow Enterprise'};pageTitle.textContent=titles[id]||'Tosi Support Pro';pageSubtitle.textContent=titles[id]||'';renderAll();}
 function filteredTickets(){const q=globalSearch.value?.toLowerCase().trim()||'';return tickets.filter(t=>(!q||[t.id,t.title,t.requester,t.sector,t.category,t.status,t.asset].join(' ').toLowerCase().includes(q))&&(!filterSector.value||t.sector===filterSector.value)&&(!filterCategory.value||t.category===filterCategory.value)&&(!filterPriority.value||t.priority===filterPriority.value)&&(!filterStatus.value||t.status===filterStatus.value)&&(!filterSla.value||(filterSla.value==='late'?isLate(t):!isLate(t))))}
 function counts(data=tickets){return{total:data.length,open:data.filter(t=>t.status==='Aberto').length,work:data.filter(t=>t.status==='Em atendimento').length,wait:data.filter(t=>t.status==='Aguardando usuário').length,done:data.filter(isClosed).length,late:data.filter(isLate).length}}
 function setText(id,v){const e=$(id); if(e)e.textContent=v}
-function renderAll(){const c=counts();['','Tickets'].forEach(s=>{setText('statTotal'+s,c.total);setText('statOpen'+s,c.open);setText('statWork'+s,c.work);setText('statWaiting'+s,c.wait);setText('statDone'+s,c.done);setText('statLate'+s,c.late)});renderDonut('statusDonut',tickets);renderBars('sectorBars',tickets);renderSlaPanel('slaPanel',tickets);renderCriticalQueue();renderTicketsTable();renderKanban();renderCatalog();renderAssets();renderKb();renderReports();renderSettings();}
+function renderAll(){const c=counts();['','Tickets'].forEach(s=>{setText('statTotal'+s,c.total);setText('statOpen'+s,c.open);setText('statWork'+s,c.work);setText('statWaiting'+s,c.wait);setText('statDone'+s,c.done);setText('statLate'+s,c.late)});renderDonut('statusDonut',tickets);renderBars('sectorBars',tickets);renderSlaPanel('slaPanel',tickets);renderCriticalQueue();renderTicketsTable();renderKanban();renderWorkflow();renderCatalog();renderAssets();renderKb();renderReports();renderSettings();}
 function renderDonut(el,data){if(!$(el))return;const total=Math.max(1,data.length),open=data.filter(t=>t.status==='Aberto').length,work=data.filter(t=>t.status==='Em atendimento').length,wait=data.filter(t=>t.status==='Aguardando usuário').length,done=data.filter(isClosed).length;let p1=open/total*100,p2=work/total*100,p3=wait/total*100;$(el).innerHTML=`<div class="donut-layout"><div class="donut" style="background:conic-gradient(#12b76a 0 ${p1}%, #1465ff ${p1}% ${p1+p2}%, #f5b700 ${p1+p2}% ${p1+p2+p3}%, #98a2b3 ${p1+p2+p3}% 100%)"><strong>${data.length}<small>Total</small></strong></div><div class="legend"><span style="--c:#12b76a"><b>Aberto</b><b>${open}</b></span><span style="--c:#1465ff"><b>Em atendimento</b><b>${work}</b></span><span style="--c:#f5b700"><b>Aguardando usuário</b><b>${wait}</b></span><span style="--c:#98a2b3"><b>Resolvido/Fechado</b><b>${done}</b></span></div></div>`}
 function renderBars(el,data){if(!$(el))return;const groups={};data.forEach(t=>groups[t.sector]=(groups[t.sector]||0)+1);const max=Math.max(1,...Object.values(groups));$(el).innerHTML=Object.entries(groups).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<div class="bar-row"><span>${esc(k)}</span><div class="bar-track"><i style="width:${v/max*100}%"></i></div><b>${v}</b></div>`).join('')}
 function renderSlaPanel(el,data){if(!$(el))return;const total=Math.max(1,data.length),late=data.filter(isLate).length,ok=data.length-late,score=Math.round(ok/total*100);$(el).innerHTML=`<div class="sla-score"><div class="circle" style="background:conic-gradient(#12b76a 0 ${score}%,#eef3f8 ${score}%)"><span>${score}%</span></div><div><p><strong>Taxa de Cumprimento</strong></p><div class="report-metric"><span>Dentro do prazo</span><strong>${ok}</strong></div><div class="report-metric"><span>Vencidos</span><strong>${late}</strong></div><div class="report-metric"><span>Total</span><strong>${data.length}</strong></div></div></div>`}
@@ -111,6 +111,78 @@ window.openAssetDetail=(id)=>{const a=assets.find(x=>x.id===id); if(!a)return; c
   <section class="asset-panel"><h3>QR Code</h3><div class="fake-qr"><span>${esc(a.id)}</span></div><p class="muted">Escaneie para abrir a ficha 360° do ativo.</p></section>
  </aside></div>`
 }
+
+
+const defaultWorkflowStages=[
+ {id:'novo',name:'Novo',color:'#0067d9',sla:'15 min',owner:'Service Desk',status:'Aberto',desc:'Entrada automática do chamado e registro inicial.'},
+ {id:'triagem',name:'Triagem',color:'#7c3aed',sla:'30 min',owner:'Service Desk',status:'Aberto',desc:'Classificação, prioridade, categoria e impacto.'},
+ {id:'n1',name:'Suporte N1',color:'#0ea5e9',sla:'4h',owner:'Atendente N1',status:'Em atendimento',desc:'Atendimento inicial, execução de procedimentos e resposta rápida.'},
+ {id:'n2',name:'Suporte N2 / Infra',color:'#f79009',sla:'8h',owner:'Atendente N2',status:'Em atendimento',desc:'Casos técnicos avançados, infraestrutura, sistemas e fornecedor.'},
+ {id:'usuario',name:'Aguardando usuário',color:'#f5b700',sla:'Pausado',owner:'Solicitante',status:'Aguardando usuário',desc:'SLA operacional pausado aguardando retorno ou validação.'},
+ {id:'resolvido',name:'Resolvido / Fechado',color:'#12b76a',sla:'Encerrado',owner:'Service Desk',status:'Resolvido',desc:'Validação, documentação final e encerramento.'}
+];
+const workflowRulesData=[
+ {if:'Prioridade = Alta ou Crítica',then:'Escalar para Suporte N2 / Infra',tag:'Escalação'},
+ {if:'Categoria = Acesso / Senha',then:'Enviar para Suporte N1',tag:'Roteamento'},
+ {if:'Status = Aguardando usuário',then:'Pausar SLA e enviar lembrete',tag:'SLA'},
+ {if:'SLA consumido > 80%',then:'Notificar responsável e gestor',tag:'Alerta'},
+ {if:'Ativo crítico vinculado',then:'Adicionar à fila crítica do dashboard',tag:'CMDB'}
+];
+let workflowStages=JSON.parse(localStorage.getItem(KEY+'-workflow')||'null')||defaultWorkflowStages;
+function saveWorkflow(){localStorage.setItem(KEY+'-workflow',JSON.stringify(workflowStages))}
+function workflowStageForTicket(t){
+ if(isClosed(t)) return 'resolvido';
+ if(t.status==='Aguardando usuário') return 'usuario';
+ if(t.priority==='Alta'||t.priority==='Crítica'||t.impact==='Crítico') return 'n2';
+ if(t.status==='Em atendimento') return 'n1';
+ if(t.status==='Aberto' && (Date.now()-new Date(t.createdAt).getTime())>60*60*1000) return 'triagem';
+ return 'novo';
+}
+function workflowKpiHtml(label,value,sub,cls='') {return `<div class="workflow-kpi ${cls}"><small>${esc(label)}</small><strong>${esc(String(value))}</strong><span>${esc(sub)}</span></div>`}
+function renderWorkflow(){
+ if(!window.workflowBoard) return;
+ const byStage=Object.fromEntries(workflowStages.map(st=>[st.id,[]]));
+ tickets.forEach(t=>{const sid=workflowStageForTicket(t);(byStage[sid]||byStage.novo||[]).push(t)});
+ const total=tickets.length, late=tickets.filter(isLate).length, critical=tickets.filter(t=>(t.priority==='Alta'||t.priority==='Crítica')&&!isClosed(t)).length;
+ if(window.workflowKpis) workflowKpis.innerHTML=[
+  workflowKpiHtml('Chamados no fluxo',total,'Todos os estágios','blue'),
+  workflowKpiHtml('SLA em risco',late,'Vencidos ou críticos','red'),
+  workflowKpiHtml('Críticos abertos',critical,'Alta prioridade','orange'),
+  workflowKpiHtml('Etapas configuradas',workflowStages.length,'Workflow Help Desk','green')
+ ].join('');
+ workflowBoard.innerHTML=workflowStages.map(st=>{
+  const list=byStage[st.id]||[];
+  const venc=list.filter(isLate).length;
+  return `<div class="workflow-stage" data-stage="${esc(st.id)}" ondragover="event.preventDefault()" ondrop="dropWorkflowTicket(event,'${esc(st.id)}')">
+   <div class="stage-head" style="--stage:${esc(st.color)}"><span></span><div><strong>${esc(st.name)}</strong><small>${list.length} chamados • SLA ${esc(st.sla)}</small></div><b>${venc?`${venc} ⚠`:''}</b></div>
+   <div class="stage-meta"><p><small>Responsável</small><strong>${esc(st.owner)}</strong></p><p><small>Status</small><strong>${esc(st.status)}</strong></p></div>
+   <div class="stage-ticket-list">${list.map(t=>workflowCard(t)).join('')||'<div class="stage-empty">Sem chamados nesta etapa</div>'}</div>
+  </div>`;
+ }).join('');
+ renderWorkflowSide(workflowStages[0]?.id);
+ renderWorkflowRules();
+ renderWorkflowAnalytics(byStage);
+}
+function workflowCard(t){const pct=slaPercent(t);return `<div class="workflow-ticket" draggable="true" ondragstart="dragWorkflowTicket(event,'${esc(t.id)}')" onclick="openTicket('${esc(t.id)}')">
+ <div><strong>${esc(t.id)}</strong><span class="badge ${esc(t.priority)}">${esc(t.priority)}</span></div>
+ <p>${esc(t.title)}</p>
+ <small>${esc(t.requester)} • ${esc(t.category)}</small>
+ <div class="workflow-card-foot"><em>${esc(t.responsible||'Service Desk')}</em><i><b style="width:${pct}%;background:${isLate(t)?'#f04438':pct>75?'#f79009':'#12b76a'}"></b></i><span>${pct}%</span></div>
+ </div>`}
+window.dragWorkflowTicket=(ev,id)=>{ev.dataTransfer.setData('text/plain',id)}
+window.dropWorkflowTicket=(ev,stageId)=>{ev.preventDefault();const id=ev.dataTransfer.getData('text/plain');const t=tickets.find(x=>x.id===id);const st=workflowStages.find(x=>x.id===stageId);if(!t||!st)return;t.status=st.status;t.updatedAt=new Date().toISOString();t.history=t.history||[];t.history.push(`Workflow: chamado movido para ${st.name}`);saveAll();renderAll();}
+function renderWorkflowSide(stageId){if(!window.workflowSidePanel)return;const st=workflowStages.find(x=>x.id===stageId)||workflowStages[0]; if(!st)return; workflowSidePanel.innerHTML=`<span class="eyebrow">Configuração da etapa</span><h3>${esc(st.name)}</h3><p>${esc(st.desc)}</p><div class="workflow-config">
+ <label>Nome da etapa<input value="${esc(st.name)}" onchange="editWorkflowStage('${esc(st.id)}','name',this.value)"></label>
+ <label>Responsável<select onchange="editWorkflowStage('${esc(st.id)}','owner',this.value)">${['Service Desk','Atendente N1','Atendente N2','Gestor TI','Solicitante','Fornecedor'].map(o=>`<option ${o===st.owner?'selected':''}>${o}</option>`).join('')}</select></label>
+ <label>Status do chamado<select onchange="editWorkflowStage('${esc(st.id)}','status',this.value)">${statusList.map(o=>`<option ${o===st.status?'selected':''}>${o}</option>`).join('')}</select></label>
+ <label>SLA da etapa<input value="${esc(st.sla)}" onchange="editWorkflowStage('${esc(st.id)}','sla',this.value)"></label>
+ <label>Cor<input type="color" value="${esc(st.color)}" onchange="editWorkflowStage('${esc(st.id)}','color',this.value)"></label>
+ </div><div class="workflow-checklist"><h4>Checklist Enterprise</h4><label><input type="checkbox" checked> Registrar auditoria</label><label><input type="checkbox" checked> Notificar responsável</label><label><input type="checkbox"> Exigir aprovação</label><label><input type="checkbox"> Pausar SLA</label></div>`}
+window.editWorkflowStage=(id,field,value)=>{const st=workflowStages.find(x=>x.id===id); if(!st)return; st[field]=value; saveWorkflow(); renderWorkflow();}
+window.addWorkflowStage=()=>{const id='etapa'+Date.now(); workflowStages.splice(Math.max(1,workflowStages.length-1),0,{id,name:'Nova etapa',color:'#475467',sla:'2h',owner:'Service Desk',status:'Em atendimento',desc:'Etapa personalizada do fluxo.'}); saveWorkflow(); renderWorkflow();}
+window.resetWorkflowDemo=()=>{workflowStages=JSON.parse(JSON.stringify(defaultWorkflowStages));saveWorkflow();renderWorkflow();}
+function renderWorkflowRules(){if(!window.workflowRules)return;workflowRules.innerHTML=workflowRulesData.map(r=>`<div class="rule-card"><span>${esc(r.tag)}</span><p><b>Se</b> ${esc(r.if)}</p><p><b>Então</b> ${esc(r.then)}</p></div>`).join('')}
+function renderWorkflowAnalytics(byStage){if(!window.workflowAnalytics)return;const max=Math.max(1,...Object.values(byStage||{}).map(a=>a.length));workflowAnalytics.innerHTML=workflowStages.map(st=>{const n=(byStage?.[st.id]||[]).length;return `<div class="analytics-row"><span>${esc(st.name)}</span><i><b style="width:${Math.round(n/max*100)}%;background:${esc(st.color)}"></b></i><strong>${n}</strong></div>`}).join('')}
 
 function renderKb(){if(!kbList)return;const kb=[['Como resetar senha do Windows/ERP','Procedimento de validação do usuário, confirmação de matrícula, redefinição e registro do atendimento.'],['Impressora não imprime','Validar fila, cabo/rede, driver, toner, papel e status no servidor de impressão.'],['Internet ou Wi-Fi sem funcionar','Testar cabo, reiniciar adaptador, validar IP, gateway, DNS e cobertura do access point.'],['Notebook lento','Verificar disco, memória, inicialização, antivírus, atualizações e espaço livre.'],['Phishing ou e-mail suspeito','Não clicar em links, encaminhar ao TI, bloquear remetente e registrar evidências.']];kbList.innerHTML=kb.map(k=>`<details><summary>${esc(k[0])}</summary><p>${esc(k[1])}</p></details>`).join('')}
 function renderReports(){if(!reportOps)return;const total=tickets.length,closed=tickets.filter(isClosed).length,late=tickets.filter(isLate).length;reportOps.innerHTML=`<div class="report-metric"><span>Total de chamados</span><strong>${total}</strong></div><div class="report-metric"><span>Resolvidos/fechados</span><strong>${closed}</strong></div><div class="report-metric"><span>Taxa de conclusão</span><strong>${total?Math.round(closed/total*100):0}%</strong></div><div class="report-metric"><span>Backlog operacional</span><strong>${total-closed}</strong></div>`;reportSla.innerHTML=`<div class="report-metric"><span>SLA vencido</span><strong>${late}</strong></div><div class="report-metric"><span>Críticos em aberto</span><strong>${tickets.filter(t=>(t.priority==='Crítica'||t.priority==='Alta')&&!isClosed(t)).length}</strong></div><div class="report-metric"><span>Dentro do prazo</span><strong>${total-late}</strong></div>`;if(reportTable)reportTable.innerHTML=`<div class="table-wrap"><table class="table"><thead><tr><th>Indicador</th><th>Valor</th><th>Comentário executivo</th></tr></thead><tbody><tr><td>MTTR médio</td><td>3h20m</td><td>Tempo médio competitivo para suporte interno.</td></tr><tr><td>Chamados críticos</td><td>${tickets.filter(t=>t.priority==='Crítica'||t.priority==='Alta').length}</td><td>Requer acompanhamento do gestor de TI.</td></tr><tr><td>Ativos impactados</td><td>${new Set(tickets.map(t=>t.asset).filter(Boolean)).size}</td><td>Vínculo com CMDB agrega rastreabilidade.</td></tr></tbody></table></div>`}

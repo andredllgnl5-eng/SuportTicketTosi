@@ -30,7 +30,7 @@
       <div class="side-brand"><img src="./logo-tosi-white.png" alt="Indústrias Tosi"></div>
       <div class="side-label">Central de TI</div>
       <nav id="nav"></nav>
-      <div class="side-footer"><div class="headset">⌕</div><strong>TOSI SUPPORT PRO</strong><small>IT Help Desk / ITSM</small><em>v10.0 CMDB Enterprise</em></div>
+      <div class="side-footer"><div class="headset">⌕</div><strong>TOSI SUPPORT PRO</strong><small>IT Help Desk / ITSM</small><em>v12.0 Workflow Enterprise</em></div>
       <button id="logoutBtn" class="side-exit">Sair</button>
     </aside>
 
@@ -131,6 +131,44 @@
 
       <section id="assetDetail" class="page asset-360-page">
         <div id="assetDetailContent"></div>
+      </section>
+
+      <section id="workflow" class="page workflow-page">
+        <div class="workflow-hero">
+          <div>
+            <span class="eyebrow">Workflow Enterprise</span>
+            <h3>Motor visual de atendimento ITSM</h3>
+            <p>Configure etapas, regras, SLAs, aprovações e acompanhe o fluxo real dos chamados com visão executiva.</p>
+          </div>
+          <div class="workflow-actions">
+            <button class="ghost" onclick="resetWorkflowDemo()">Restaurar fluxo padrão</button>
+            <button class="primary" onclick="addWorkflowStage()">＋ Nova etapa</button>
+          </div>
+        </div>
+        <div id="workflowKpis" class="workflow-kpis"></div>
+        <div class="workflow-grid">
+          <div class="card workflow-board-card">
+            <div class="workflow-toolbar">
+              <div>
+                <h3>Fluxo Help Desk</h3>
+                <p>Arraste chamados entre etapas. Cada movimentação gera histórico e atualiza o status.</p>
+              </div>
+              <select id="workflowView" onchange="renderWorkflow()">
+                <option>Help Desk TI</option>
+                <option>Infraestrutura</option>
+                <option>Acessos e Segurança</option>
+              </select>
+            </div>
+            <div id="workflowBoard" class="workflow-board"></div>
+          </div>
+          <aside class="card workflow-side">
+            <div id="workflowSidePanel"></div>
+          </aside>
+        </div>
+        <div class="workflow-bottom">
+          <div class="card"><h3>Regras automáticas</h3><div id="workflowRules"></div></div>
+          <div class="card"><h3>Analytics por etapa</h3><div id="workflowAnalytics"></div></div>
+        </div>
       </section>
       <section id="serviceCatalog" class="page"><div class="section-head"><h3>Catálogo de Serviços</h3><p>Serviços padronizados com SLA, responsável e fluxo de atendimento.</p></div><div id="catalogGrid" class="catalog-grid"></div></section>
       <section id="knowledge" class="page"><div class="section-head"><h3>Base de conhecimento</h3><p>Artigos e procedimentos para reduzir chamados repetitivos.</p></div><div class="card form-card"><div id="kbList"></div></div></section>
