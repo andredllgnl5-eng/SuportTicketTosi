@@ -1,1 +1,12 @@
-{"name":"tosi-ticket-v1","version":"1.0.0","type":"module","scripts":{"dev":"vercel dev","start":"vercel dev"},"dependencies":{}}
+{
+  "name": "tosi-support-pro",
+  "version": "6.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vercel dev",
+    "start": "vercel dev"
+  },
+  "dependencies": {
+    "exceljs": "^4.4.0"
+  }
+}
