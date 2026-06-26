@@ -68,3 +68,12 @@ Como testar:
 2. Acesse com admin@tosi.com.br / 123456.
 3. Clique no menu Central NOC.
 4. Use o botão Modo TV para abrir o painel de monitoramento.
+
+
+SPRINT 19 - NOC Modo TV vivo / dados sincronizados
+- O botão Modo TV agora abre uma janela que mantém o relógio rodando.
+- A tela de TV lê o snapshot vivo do NOC a cada 1 segundo.
+- O front-end publica o snapshot localmente e envia para /api/noc-snapshot a cada 5 segundos.
+- O endpoint /api/noc-snapshot salva no Supabase quando SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY estiverem configurados.
+- Adicionada tabela noc_snapshots ao schema.sql.
+- Enquanto o Supabase não estiver configurado, o sistema usa fallback local/demo.

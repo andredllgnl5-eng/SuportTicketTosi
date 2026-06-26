@@ -58,7 +58,10 @@ let tickets=JSON.parse(localStorage.getItem(KEY)||'null')||[
 ];
 const navItems=[['dashboard','⌂','Dashboard'],['tickets','▣','Chamados'],['newTicket','＋','Novo Chamado'],['clientPortal','◉','Portal do Usuário'],['kanban','▦','Kanban'],['workflow','⟲','Workflow'],['automations','⚡','Automações'],['approvals','✓','Aprovações'],['serviceCatalog','◈','Catálogo de Serviços'],['assets','▥','Ativos TI / CMDB'],['knowledge','▤','Base de Conhecimento'],['reports','▧','Relatórios'],['bi','📊','Business Intelligence'],['noc','🖥','Central NOC'],['settings','⚙','Configurações']];
 function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
-function saveAll(){localStorage.setItem(KEY,JSON.stringify(tickets))}
+function saveAll(){
+  localStorage.setItem(KEY,JSON.stringify(tickets));
+  publishNocSnapshot(false);
+}
 function money(v){return Number(v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}
 function fmtDate(v){return new Date(v).toLocaleDateString('pt-BR')}function fmt(v){return new Date(v).toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'})}
 function isClosed(t){return ['Resolvido','Fechado'].includes(t.status)}function isLate(t){return !isClosed(t)&&new Date(t.slaDueAt)<new Date()}
@@ -425,63 +428,204 @@ function openTvMode(){
 }
 
 
-function renderNOC(){
-  if(!window.nocPanel)return;
+
+const NOC_SNAPSHOT_KEY='tosi-support-pro-noc-snapshot';
+let nocBackendTimer=null;
+let nocRenderTimer=null;
+let lastNocSyncAt=0;
+
+function buildNocSnapshot(){
   const late=tickets.filter(isLate).length;
   const critical=tickets.filter(t=>(t.priority==='Alta'||t.priority==='Crítica')&&!isClosed(t)).length;
   const open=tickets.filter(t=>!isClosed(t)).length;
+  const closed=tickets.filter(isClosed).length;
   const services=[
     {name:'Portal Service Desk',group:'Aplicações',status:'online',uptime:'99,99%',lat:'18ms',load:28},
     {name:'ERP Interno',group:'Sistemas',status:'online',uptime:'99,95%',lat:'32ms',load:41},
     {name:'Banco SQL',group:'Banco de dados',status:'online',uptime:'100%',lat:'12ms',load:36},
-    {name:'Backup Cloud',group:'Backup',status:'warning',uptime:'96,20%',lat:'-',load:74},
-    {name:'File Server',group:'Arquivos',status:'critical',uptime:'91,40%',lat:'85ms',load:92},
+    {name:'Backup Cloud',group:'Backup',status:late>0?'warning':'online',uptime:late>0?'96,20%':'99,70%',lat:'-',load:late>0?74:39},
+    {name:'File Server',group:'Arquivos',status:critical>1?'critical':'warning',uptime:critical>1?'91,40%':'97,80%',lat:critical>1?'85ms':'48ms',load:critical>1?92:68},
     {name:'Proxy / API',group:'Integrações',status:'online',uptime:'99,98%',lat:'22ms',load:31}
   ];
+  const online=services.filter(s=>s.status==='online').length;
   const links=[
-    ['Internet Matriz','online',100,'Operadora principal'],['Link Backup','warning',62,'Failover disponível'],['VPN Usuários','online',94,'Acesso remoto'],['Wi-Fi Administrativo','online',98,'Access points'],['Rede Produção','critical',55,'Oscilação detectada']
+    ['Internet Matriz','online',100,'Operadora principal'],
+    ['Link Backup',late>0?'warning':'online',late>0?62:93,'Failover disponível'],
+    ['VPN Usuários','online',94,'Acesso remoto'],
+    ['Wi-Fi Administrativo','online',98,'Access points'],
+    ['Rede Produção',critical>1?'critical':'warning',critical>1?55:78,'Oscilação detectada']
   ];
   const printers=[
-    ['Impressora PCP','warning','Toner 12%','AT-0002'],['Financeiro','online','Operacional','AT-0005'],['Expedição','critical','Offline','AT-0006'],['RH','online','Papel OK','AT-0007']
+    ['Impressora PCP',open>0?'warning':'online',open>0?'Toner 12%':'Operacional','AT-0002'],
+    ['Financeiro','online','Operacional','AT-0005'],
+    ['Expedição',critical>2?'critical':'online',critical>2?'Offline':'Operacional','AT-0006'],
+    ['RH','online','Papel OK','AT-0007']
   ];
+  const health=Math.max(1,Math.min(100,Math.round(100-(late*4)-(critical*3))));
+  const securityBlocks=1284 + (critical*17) + (late*9);
   const timeline=[
-    ['Agora','SLA crítico detectado em CH-2026-0250','danger'],['08:55','Impressora PCP com toner baixo','warn'],['08:41','Backup cloud concluído com atraso','warn'],['08:30','ERP interno respondeu normalmente','ok'],['08:10','Firewall bloqueou 124 tentativas suspeitas','ok']
+    ['Agora', late?`SLA vencido detectado em ${late} chamado(s)`:'Operação dentro do SLA principal', late?'danger':'ok'],
+    ['Agora', critical?`${critical} chamado(s) de alta prioridade em aberto`:'Nenhum chamado crítico novo', critical?'warn':'ok'],
+    ['08:55','Impressora PCP com toner baixo','warn'],
+    ['08:41','Backup cloud concluído com atraso','warn'],
+    ['08:10',`Firewall bloqueou ${securityBlocks} tentativas suspeitas`,'ok']
   ];
-  const health=Math.max(1,Math.round(100-(late*4)-(critical*3)));
+  return {
+    generatedAt:new Date().toISOString(),
+    health, late, critical, open, closed,
+    total:tickets.length,
+    serviceTotal:services.length,
+    online,
+    securityBlocks,
+    networkStatus: links.some(l=>l[1]==='critical')?'Crítico':links.some(l=>l[1]==='warning')?'Atenção':'Normal',
+    backupStatus: late>0?'Atrasado':'OK',
+    services, links, printers, timeline,
+    assetsRisk:assets.filter(a=>a.status==='Crítico'||a.risco==='Alto').length,
+    availability:'98,7%'
+  };
+}
+function publishNocSnapshot(syncBackend=true){
+  const snapshot=buildNocSnapshot();
+  try{localStorage.setItem(NOC_SNAPSHOT_KEY,JSON.stringify(snapshot));}catch(e){}
+  if(syncBackend) syncNocSnapshot(snapshot);
+  return snapshot;
+}
+async function syncNocSnapshot(snapshot=buildNocSnapshot()){
+  const now=Date.now();
+  if(now-lastNocSyncAt<5000) return;
+  lastNocSyncAt=now;
+  try{
+    await fetch('/api/noc-snapshot',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({snapshot,tickets,assets})});
+  }catch(e){}
+}
+async function loadNocSnapshot(){
+  try{
+    const res=await fetch('/api/noc-snapshot',{cache:'no-store'});
+    const data=await res.json();
+    if(data && data.ok && data.snapshot) return data.snapshot;
+  }catch(e){}
+  try{return JSON.parse(localStorage.getItem(NOC_SNAPSHOT_KEY)||'null')||buildNocSnapshot();}catch(e){return buildNocSnapshot();}
+}
+function startNocLiveLoop(){
+  clearInterval(nocRenderTimer);
+  clearInterval(nocBackendTimer);
+  nocRenderTimer=setInterval(()=>{
+    updateNocClock();
+    const isNocActive=document.querySelector('#noc.active-page');
+    if(isNocActive) renderNOC(false);
+  },10000);
+  nocBackendTimer=setInterval(()=>publishNocSnapshot(true),5000);
+  publishNocSnapshot(true);
+}
+window.addEventListener('storage',e=>{
+  if(e.key===KEY || e.key===NOC_SNAPSHOT_KEY){
+    if(document.querySelector('#noc.active-page')) renderNOC(false);
+  }
+});
+
+function renderNOC(sync=true){
+  if(!window.nocPanel)return;
+  const snap=publishNocSnapshot(sync);
+  const services=snap.services, links=snap.links, printers=snap.printers, timeline=snap.timeline;
   const serviceCards=services.map(s=>`<div class="noc-service ${s.status}"><div><b>${esc(s.name)}</b><span>${esc(s.group)}</span></div><strong>${s.status==='online'?'Online':s.status==='warning'?'Atenção':'Crítico'}</strong><p><span>Uptime</span><b>${s.uptime}</b></p><p><span>Latência</span><b>${s.lat}</b></p><div class="bar"><i style="width:${s.load}%;background:${s.status==='critical'?'#f04438':s.status==='warning'?'#f79009':'#12b76a'}"></i></div></div>`).join('');
   nocPanel.innerHTML=`
     <div class="noc-hero">
-      <div><span class="eyebrow">Network Operations Center</span><h3>Central de Monitoramento de TI</h3><p>Painel vivo para acompanhar serviços críticos, infraestrutura, SLA, ativos, links, impressoras e alertas da operação.</p></div>
+      <div><span class="eyebrow">Network Operations Center</span><h3>Central de Monitoramento de TI</h3><p>Painel vivo para acompanhar serviços críticos, infraestrutura, SLA, ativos, links, impressoras e alertas da operação. Os dados são publicados automaticamente e ficam prontos para integração com Supabase/API.</p></div>
       <div class="noc-clock"><small>Atualização automática</small><strong id="nocClock">--:--:--</strong><button class="primary" onclick="openNocTvMode()">Modo TV</button></div>
     </div>
     <div class="noc-kpi-grid">
-      <div class="card noc-kpi"><small>Saúde da operação</small><strong>${health}%</strong><span class="ok">${health>=90?'Estável':'Atenção'}</span></div>
-      <div class="card noc-kpi"><small>Serviços monitorados</small><strong>${services.length}</strong><span>Aplicações críticas</span></div>
-      <div class="card noc-kpi"><small>Alertas ativos</small><strong>${late+critical}</strong><span class="danger">SLA / Críticos</span></div>
-      <div class="card noc-kpi"><small>Backlog de TI</small><strong>${open}</strong><span>Chamados abertos</span></div>
-      <div class="card noc-kpi"><small>Ativos em risco</small><strong>${assets.filter(a=>a.status==='Crítico'||a.risco==='Alto').length}</strong><span>CMDB</span></div>
-      <div class="card noc-kpi"><small>Disponibilidade média</small><strong>98,7%</strong><span class="ok">Últimas 24h</span></div>
+      <div class="card noc-kpi"><small>Saúde da operação</small><strong>${snap.health}%</strong><span class="${snap.health>=90?'ok':'danger'}">${snap.health>=90?'Estável':'Atenção'}</span></div>
+      <div class="card noc-kpi"><small>Serviços monitorados</small><strong>${snap.serviceTotal}</strong><span>Aplicações críticas</span></div>
+      <div class="card noc-kpi"><small>Alertas ativos</small><strong>${snap.late+snap.critical}</strong><span class="danger">SLA / Críticos</span></div>
+      <div class="card noc-kpi"><small>Backlog de TI</small><strong>${snap.open}</strong><span>Chamados abertos</span></div>
+      <div class="card noc-kpi"><small>Ativos em risco</small><strong>${snap.assetsRisk}</strong><span>CMDB</span></div>
+      <div class="card noc-kpi"><small>Disponibilidade média</small><strong>${snap.availability}</strong><span class="ok">Últimas 24h</span></div>
     </div>
     <div class="noc-grid-main">
       <div class="card noc-card wide"><div class="panel-title"><h3>Serviços críticos</h3><button onclick="renderNOC()">Atualizar</button></div><div class="noc-services">${serviceCards}</div></div>
-      <div class="card noc-card"><h3>SLA ao vivo</h3><div class="noc-gauge" style="background:conic-gradient(#12b76a 0 ${100-late*10}%,#f04438 ${100-late*10}% 100%)"><span>${Math.max(0,100-late*10)}%</span></div><div class="report-metric"><span>Dentro do prazo</span><strong>${tickets.length-late}</strong></div><div class="report-metric"><span>Vencidos</span><strong>${late}</strong></div><div class="report-metric"><span>Críticos</span><strong>${critical}</strong></div></div>
+      <div class="card noc-card"><h3>SLA ao vivo</h3><div class="noc-gauge" style="background:conic-gradient(#12b76a 0 ${Math.max(0,100-snap.late*10)}%,#f04438 ${Math.max(0,100-snap.late*10)}% 100%)"><span>${Math.max(0,100-snap.late*10)}%</span></div><div class="report-metric"><span>Dentro do prazo</span><strong>${snap.total-snap.late}</strong></div><div class="report-metric"><span>Vencidos</span><strong>${snap.late}</strong></div><div class="report-metric"><span>Críticos</span><strong>${snap.critical}</strong></div></div>
       <div class="card noc-card"><h3>Links e rede</h3>${links.map(l=>`<div class="noc-link ${l[1]}"><div><b>${esc(l[0])}</b><small>${esc(l[3])}</small></div><span>${l[2]}%</span><div class="bar"><i style="width:${l[2]}%;background:${l[1]==='critical'?'#f04438':l[1]==='warning'?'#f79009':'#12b76a'}"></i></div></div>`).join('')}</div>
       <div class="card noc-card"><h3>Microsoft 365 / Cloud</h3>${['Exchange Online','Teams','SharePoint','OneDrive','Entra ID'].map((n,i)=>`<div class="cloud-row"><span class="dot ${i===2?'warning':'online'}"></span><b>${n}</b><small>${i===2?'Degradação leve':'Operacional'}</small></div>`).join('')}</div>
-      <div class="card noc-card"><h3>Firewall / Segurança</h3><div class="security-ring"><strong>1.284</strong><span>bloqueios hoje</span></div><div class="report-metric"><span>CPU</span><strong>23%</strong></div><div class="report-metric"><span>RAM</span><strong>61%</strong></div><div class="report-metric"><span>Sessões</span><strong>12.834</strong></div></div>
+      <div class="card noc-card"><h3>Firewall / Segurança</h3><div class="security-ring"><strong>${snap.securityBlocks.toLocaleString('pt-BR')}</strong><span>bloqueios hoje</span></div><div class="report-metric"><span>CPU</span><strong>23%</strong></div><div class="report-metric"><span>RAM</span><strong>61%</strong></div><div class="report-metric"><span>Sessões</span><strong>12.834</strong></div></div>
       <div class="card noc-card"><h3>Impressoras</h3>${printers.map(p=>`<div class="printer-row ${p[1]}"><span>${p[1]==='online'?'🟢':p[1]==='warning'?'🟡':'🔴'}</span><div><b>${esc(p[0])}</b><small>${esc(p[3])} • ${esc(p[2])}</small></div></div>`).join('')}</div>
       <div class="card noc-card wide"><h3>Mapa da empresa</h3><div class="site-map">${['TI','PCP','Produção','Financeiro','RH','Recepção','Sala TI','Expedição'].map((s,i)=>`<button class="site-node ${i===5?'critical':i===3?'warning':'online'}"><span>${i===5?'🔴':i===3?'🟡':'🟢'}</span>${s}</button>`).join('')}</div></div>
       <div class="card noc-card"><h3>Linha do tempo</h3>${timeline.map(t=>`<div class="noc-event ${t[2]}"><small>${t[0]}</small><b>${esc(t[1])}</b></div>`).join('')}</div>
-      <div class="card noc-card"><h3>Recomendação operacional</h3><div class="noc-ai"><strong>Prioridades agora</strong><p>1. Validar File Server crítico.</p><p>2. Trocar toner da Impressora PCP.</p><p>3. Acompanhar CH-2026-0250 vencido.</p><button class="ghost" onclick="showPage('tickets')">Ver chamados críticos</button></div></div>
+      <div class="card noc-card"><h3>Recomendação operacional</h3><div class="noc-ai"><strong>Prioridades agora</strong><p>1. Validar serviços em atenção.</p><p>2. Verificar links de rede oscilando.</p><p>3. Acompanhar chamados com SLA vencido.</p><button class="ghost" onclick="showPage('tickets')">Ver chamados críticos</button></div></div>
     </div>`;
   updateNocClock();
 }
-function updateNocClock(){if(window.nocClock)nocClock.textContent=new Date().toLocaleTimeString('pt-BR')}
+function updateNocClock(){
+  if(window.nocClock)nocClock.textContent=new Date().toLocaleTimeString('pt-BR');
+}
 setInterval(updateNocClock,1000);
 window.openNocTvMode=()=>{
+  publishNocSnapshot(true);
   const w=window.open('','_blank');
-  const late=tickets.filter(isLate).length, open=tickets.filter(t=>!isClosed(t)).length;
-  w.document.write(`<!doctype html><html><head><title>NOC TV</title><style>body{margin:0;background:#03172f;color:white;font-family:Arial;padding:34px}.tv{display:grid;grid-template-columns:repeat(4,1fr);gap:22px}.card{background:#092b54;border:1px solid #1b64a5;border-radius:24px;padding:30px}h1{font-size:54px}strong{font-size:58px;display:block}.ok{color:#12b76a}.warn{color:#f79009}.danger{color:#f04438}</style></head><body><h1>TOSI SUPPORT PRO • NOC</h1><p>Central de Monitoramento de TI</p><div class="tv"><div class="card"><span>Saúde TI</span><strong class="ok">96%</strong></div><div class="card"><span>Chamados abertos</span><strong>${open}</strong></div><div class="card"><span>SLA vencido</span><strong class="danger">${late}</strong></div><div class="card"><span>Serviços online</span><strong class="ok">5/6</strong></div><div class="card"><span>Firewall</span><strong>1.284</strong><small>bloqueios hoje</small></div><div class="card"><span>Rede</span><strong class="warn">Atenção</strong></div><div class="card"><span>Backup</span><strong class="warn">Atrasado</strong></div><div class="card"><span>Última atualização</span><strong>${new Date().toLocaleTimeString('pt-BR')}</strong></div></div></body></html>`);w.document.close();
+  const html=`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>NOC TV</title>
+  <style>
+    :root{--ok:#12b76a;--warn:#f79009;--danger:#f04438;--line:#1b64a5;--card:#092b54;--bg:#03172f}
+    *{box-sizing:border-box}body{margin:0;background:var(--bg);color:white;font-family:Arial,Helvetica,sans-serif;padding:34px;overflow:hidden}
+    header{display:flex;align-items:flex-start;justify-content:space-between;gap:24px;margin-bottom:26px}
+    h1{font-size:54px;margin:0 0 12px;letter-spacing:.02em}.sub{opacity:.92;font-size:17px}
+    .clock{text-align:right}.clock strong{font-size:44px}.clock small{display:block;opacity:.75;margin-top:8px}
+    .tv{display:grid;grid-template-columns:repeat(4,1fr);gap:22px}.card{background:var(--card);border:1px solid var(--line);border-radius:24px;padding:30px;min-height:145px;box-shadow:0 18px 40px rgba(0,0,0,.18)}
+    .card span{display:block;font-size:16px;margin-bottom:10px}.card strong{font-size:58px;display:block;line-height:1}.card small{font-weight:bold;opacity:.9}
+    .ok{color:var(--ok)}.warn{color:var(--warn)}.danger{color:var(--danger)}
+    .wide{grid-column:span 2;min-height:240px}.services{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:14px}.svc{border:1px solid rgba(255,255,255,.16);border-radius:14px;padding:13px;background:rgba(255,255,255,.04)}.svc b{display:block}.svc small{opacity:.8}
+    .timeline{display:grid;gap:10px;margin-top:14px}.event{padding:12px;border-left:5px solid var(--ok);background:rgba(255,255,255,.05);border-radius:10px}.event.warn{border-color:var(--warn)}.event.danger{border-color:var(--danger)}
+    .footer{position:fixed;bottom:16px;left:34px;right:34px;display:flex;justify-content:space-between;color:#b9d6f8;font-size:13px}
+  </style></head><body>
+    <header><div><h1>TOSI SUPPORT PRO • NOC</h1><div class="sub">Central de Monitoramento de TI • Dados vivos do Help Desk / CMDB / SLA</div></div><div class="clock"><strong id="tvClock">--:--:--</strong><small id="tvUpdated">Sincronizando...</small></div></header>
+    <main class="tv">
+      <div class="card"><span>Saúde TI</span><strong id="tvHealth" class="ok">--%</strong></div>
+      <div class="card"><span>Chamados abertos</span><strong id="tvOpen">--</strong></div>
+      <div class="card"><span>SLA vencido</span><strong id="tvLate" class="danger">--</strong></div>
+      <div class="card"><span>Serviços online</span><strong id="tvServices" class="ok">--/--</strong></div>
+      <div class="card"><span>Firewall</span><strong id="tvFirewall">--</strong><small>bloqueios hoje</small></div>
+      <div class="card"><span>Rede</span><strong id="tvNetwork" class="warn">--</strong></div>
+      <div class="card"><span>Backup</span><strong id="tvBackup" class="warn">--</strong></div>
+      <div class="card"><span>Última atualização</span><strong id="tvLast">--:--:--</strong></div>
+      <div class="card wide"><span>Serviços críticos</span><div id="tvServiceList" class="services"></div></div>
+      <div class="card wide"><span>Linha do tempo</span><div id="tvTimeline" class="timeline"></div></div>
+    </main>
+    <div class="footer"><span>Atualização automática a cada 1 segundo na tela e a cada 5 segundos na API/Supabase quando configurado.</span><span>Tosi Support Pro v19 • Modo TV</span></div>
+    <script>
+      const KEY='${NOC_SNAPSHOT_KEY}';
+      const fmtTime=v=>{try{return new Date(v).toLocaleTimeString('pt-BR')}catch(e){return '--:--:--'}};
+      function fallback(){return {health:0,open:0,late:0,online:0,serviceTotal:0,securityBlocks:0,networkStatus:'--',backupStatus:'--',generatedAt:new Date().toISOString(),services:[],timeline:[]};}
+      async function load(){
+        let snap=null;
+        try{snap=JSON.parse(localStorage.getItem(KEY)||'null')}catch(e){}
+        try{
+          const res=await fetch('/api/noc-snapshot',{cache:'no-store'});
+          const data=await res.json();
+          if(data&&data.ok&&data.snapshot) snap=data.snapshot;
+        }catch(e){}
+        return snap||fallback();
+      }
+      async function paint(){
+        const s=await load();
+        const clock=new Date().toLocaleTimeString('pt-BR');
+        tvClock.textContent=clock;
+        tvHealth.textContent=(s.health||0)+'%'; tvHealth.className=(s.health>=90?'ok':s.health>=70?'warn':'danger');
+        tvOpen.textContent=s.open||0;
+        tvLate.textContent=s.late||0;
+        tvServices.textContent=(s.online||0)+'/'+(s.serviceTotal||0); tvServices.className=(s.online===s.serviceTotal?'ok':'warn');
+        tvFirewall.textContent=Number(s.securityBlocks||0).toLocaleString('pt-BR');
+        tvNetwork.textContent=s.networkStatus||'--'; tvNetwork.className=s.networkStatus==='Normal'?'ok':s.networkStatus==='Atenção'?'warn':'danger';
+        tvBackup.textContent=s.backupStatus||'--'; tvBackup.className=s.backupStatus==='OK'?'ok':'warn';
+        tvLast.textContent=fmtTime(s.generatedAt);
+        tvUpdated.textContent='Última sincronização: '+fmtTime(s.generatedAt);
+        tvServiceList.innerHTML=(s.services||[]).slice(0,6).map(x=>'<div class="svc"><b>'+x.name+'</b><small>'+x.group+' • '+(x.status==='online'?'Online':x.status==='warning'?'Atenção':'Crítico')+'</small></div>').join('');
+        tvTimeline.innerHTML=(s.timeline||[]).slice(0,5).map(x=>'<div class="event '+(x[2]||'')+'"><small>'+x[0]+'</small><b>'+x[1]+'</b></div>').join('');
+      }
+      setInterval(paint,1000);
+      window.addEventListener('storage',e=>{if(e.key===KEY)paint()});
+      paint();
+    </script></body></html>`;
+  w.document.write(html);w.document.close();
 }
+startNocLiveLoop();
 
 function renderReports(){if(!reportOps)return;const total=tickets.length,closed=tickets.filter(isClosed).length,late=tickets.filter(isLate).length;reportOps.innerHTML=`<div class="report-metric"><span>Total de chamados</span><strong>${total}</strong></div><div class="report-metric"><span>Resolvidos/fechados</span><strong>${closed}</strong></div><div class="report-metric"><span>Taxa de conclusão</span><strong>${total?Math.round(closed/total*100):0}%</strong></div><div class="report-metric"><span>Backlog operacional</span><strong>${total-closed}</strong></div>`;reportSla.innerHTML=`<div class="report-metric"><span>SLA vencido</span><strong>${late}</strong></div><div class="report-metric"><span>Críticos em aberto</span><strong>${tickets.filter(t=>(t.priority==='Crítica'||t.priority==='Alta')&&!isClosed(t)).length}</strong></div><div class="report-metric"><span>Dentro do prazo</span><strong>${total-late}</strong></div>`;if(reportTable)reportTable.innerHTML=`<div class="table-wrap"><table class="table"><thead><tr><th>Indicador</th><th>Valor</th><th>Comentário executivo</th></tr></thead><tbody><tr><td>MTTR médio</td><td>3h20m</td><td>Tempo médio competitivo para suporte interno.</td></tr><tr><td>Chamados críticos</td><td>${tickets.filter(t=>t.priority==='Crítica'||t.priority==='Alta').length}</td><td>Requer acompanhamento do gestor de TI.</td></tr><tr><td>Ativos impactados</td><td>${new Set(tickets.map(t=>t.asset).filter(Boolean)).size}</td><td>Vínculo com CMDB agrega rastreabilidade.</td></tr></tbody></table></div>`}
 function renderSettings(){if(!departmentsList)return;departmentsList.innerHTML=departments.map(d=>`<span class="chip">${esc(d)}</span>`).join('');usersList.innerHTML=users.map(u=>`<div class="ticket-item"><div><strong>${esc(u.name)}</strong><br><small>${esc(u.email)} • ${esc(u.sector)}</small></div><span class="badge">${esc(u.role)}</span></div>`).join('')}

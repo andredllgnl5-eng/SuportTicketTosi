@@ -42,3 +42,12 @@ create table if not exists ticket_attachments (
   size_bytes bigint,
   created_at timestamptz default now()
 );
+
+
+-- Sprint 19 - Central NOC Enterprise
+-- Armazena o último snapshot operacional do NOC para Modo TV e dashboards em tempo real.
+create table if not exists noc_snapshots (
+  id text primary key default 'default',
+  snapshot jsonb not null,
+  updated_at timestamptz default now()
+);

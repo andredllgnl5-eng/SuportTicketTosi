@@ -137,6 +137,66 @@ async function buildExcelReport(tickets=[]){
   return wb.xlsx.writeBuffer();
 }
 
+
+function defaultNocSnapshot(){
+  return {
+    generatedAt:new Date().toISOString(),
+    health:96, open:0, late:0, critical:0, total:0,
+    serviceTotal:6, online:5, securityBlocks:1284,
+    networkStatus:'Atenção', backupStatus:'Atrasado',
+    services:[
+      {name:'Portal Service Desk',group:'Aplicações',status:'online',uptime:'99,99%',lat:'18ms',load:28},
+      {name:'ERP Interno',group:'Sistemas',status:'online',uptime:'99,95%',lat:'32ms',load:41},
+      {name:'Banco SQL',group:'Banco de dados',status:'online',uptime:'100%',lat:'12ms',load:36},
+      {name:'Backup Cloud',group:'Backup',status:'warning',uptime:'96,20%',lat:'-',load:74},
+      {name:'File Server',group:'Arquivos',status:'critical',uptime:'91,40%',lat:'85ms',load:92},
+      {name:'Proxy / API',group:'Integrações',status:'online',uptime:'99,98%',lat:'22ms',load:31}
+    ],
+    timeline:[['Agora','Aguardando sincronização do front-end','warn']]
+  };
+}
+function buildNocSnapshotFromBody(body={}){
+  if(body.snapshot && typeof body.snapshot === 'object') {
+    return {...body.snapshot, generatedAt:new Date().toISOString()};
+  }
+  const tickets=Array.isArray(body.tickets)?body.tickets:[];
+  const assets=Array.isArray(body.assets)?body.assets:[];
+  const closed=t=>['Resolvido','Fechado'].includes(t.status);
+  const late=t=>!closed(t)&&new Date(t.slaDueAt)<new Date();
+  const lateCount=tickets.filter(late).length;
+  const critical=tickets.filter(t=>(t.priority==='Alta'||t.priority==='Crítica')&&!closed(t)).length;
+  const open=tickets.filter(t=>!closed(t)).length;
+  const health=Math.max(1,Math.min(100,Math.round(100-(lateCount*4)-(critical*3))));
+  const snapshot=defaultNocSnapshot();
+  return {...snapshot,generatedAt:new Date().toISOString(),health,open,late:lateCount,critical,total:tickets.length,assetsRisk:assets.filter(a=>a.status==='Crítico'||a.risco==='Alto').length};
+}
+async function supabaseRest(pathname, options={}){
+  const base=(process.env.SUPABASE_URL||'').replace(/\/$/,'');
+  const key=process.env.SUPABASE_SERVICE_ROLE_KEY||process.env.SUPABASE_SERVICE_KEY||'';
+  if(!base || !key) return null;
+  const url=`${base}/rest/v1/${pathname}`;
+  const res=await fetch(url,{...options,headers:{apikey:key,Authorization:`Bearer ${key}`,'Content-Type':'application/json',Prefer:'return=representation',...(options.headers||{})}});
+  if(!res.ok) throw new Error(`Supabase ${res.status}: ${await res.text()}`);
+  return res.status===204?null:await res.json();
+}
+async function saveNocSnapshot(snapshot){
+  try{
+    const row={id:'default',snapshot,updated_at:new Date().toISOString()};
+    return await supabaseRest('noc_snapshots?id=eq.default',{method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=representation'},body:JSON.stringify(row)});
+  }catch(e){
+    console.warn('NOC snapshot local fallback:', e.message);
+    globalThis.__tosiNocSnapshot=snapshot;
+    return null;
+  }
+}
+async function getNocSnapshot(){
+  try{
+    const rows=await supabaseRest('noc_snapshots?id=eq.default&select=snapshot,updated_at&limit=1',{method:'GET'});
+    if(Array.isArray(rows)&&rows[0]?.snapshot) return rows[0].snapshot;
+  }catch(e){}
+  return globalThis.__tosiNocSnapshot || defaultNocSnapshot();
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', process.env.ALLOWED_ORIGIN || '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
@@ -144,6 +204,23 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(204).end();
   const route = req.url || '/api';
   if (route.includes('/health')) return res.status(200).json({ ok:true, service:'Tosi Support Pro API', version:'6.1.0' });
+  if (route.includes('/noc-snapshot')) {
+    try {
+      if (req.method === 'POST') {
+        const body=await readJsonBody(req);
+        const snapshot=buildNocSnapshotFromBody(body);
+        await saveNocSnapshot(snapshot);
+        return res.status(200).json({ok:true,snapshot,persisted:!!(process.env.SUPABASE_URL&&process.env.SUPABASE_SERVICE_ROLE_KEY)});
+      }
+      if (req.method === 'GET') {
+        const snapshot=await getNocSnapshot();
+        return res.status(200).json({ok:true,snapshot,persisted:!!(process.env.SUPABASE_URL&&process.env.SUPABASE_SERVICE_ROLE_KEY)});
+      }
+      return res.status(405).json({ok:false,error:'Método não permitido'});
+    } catch(e) {
+      return res.status(500).json({ok:false,error:'Falha no snapshot NOC',details:e.message});
+    }
+  }
   if (route.includes('/report-excel')) {
     if (req.method !== 'POST') return res.status(405).json({ok:false,error:'Método não permitido'});
     try {
