@@ -99,50 +99,100 @@ window.openTicket=id=>{
   const t=tickets.find(x=>x.id===id);if(!t)return;
   const a=assetInfo(t.asset);
   const pct=slaPercent(t), late=isLate(t);
+  const userTickets=tickets.filter(x=>x.requester===t.requester && x.id!==t.id).slice(0,4);
+  const assetTickets=t.asset?tickets.filter(x=>x.asset===t.asset && x.id!==t.id).slice(0,4):[];
+  const cost = ticketCost(t);
   modalContent.innerHTML=`
-  <div class="ticket-detail">
-    <div class="ticket-hero ${late?'danger':''}">
-      <div>
+  <div class="ticket-360">
+    <div class="t360-command">
+      <button class="back-btn" onclick="ticketModal.close()">← Voltar</button>
+      <div class="t360-title">
         <div class="ticket-kicker"><span>${esc(t.id)}</span><span>${esc(t.type)}</span><span class="badge ${esc(t.priority)}">${esc(t.priority)}</span><span class="badge status">${esc(t.status)}</span></div>
         <h2>${esc(t.title)}</h2>
         <p>${esc(t.description)}</p>
       </div>
-      <div class="sla-widget">
-        <small>SLA do chamado</small>
+      <div class="t360-sla ${late?'late':''}">
+        <small>${late?'SLA vencido':'SLA restante'}</small>
         <strong>${timeLeftText(t)}</strong>
         <div class="bar"><i style="width:${pct}%;background:${late?'#f04438':pct>75?'#f79009':'#12b76a'}"></i></div>
         <em>${pct}% consumido</em>
       </div>
     </div>
-    <div class="ticket-actions">
-      <button class="primary" onclick="updateTicket('${esc(t.id)}','reply')">Responder / Salvar</button>
+
+    <div class="t360-actions">
+      <button class="primary" onclick="updateTicket('${esc(t.id)}')">Salvar resposta</button>
       <button class="ghost" onclick="quickStatus('${esc(t.id)}','Em atendimento')">Assumir</button>
       <button class="ghost" onclick="quickStatus('${esc(t.id)}','Aguardando usuário')">Aguardar usuário</button>
       <button class="ghost" onclick="quickStatus('${esc(t.id)}','Resolvido')">Resolver</button>
       <button class="ghost" onclick="printTicket('${esc(t.id)}')">Gerar PDF</button>
     </div>
-    <div class="ticket-detail-grid">
-      <section class="detail-main">
-        <div class="detail-card"><h3>Resposta ao usuário / comentário interno</h3><textarea id="modalComment" placeholder="Digite a resposta ao usuário ou comentário interno. Tudo fica registrado na auditoria."></textarea><div class="reply-tools"><button class="action-btn" onclick="insertTemplate('solicitamos mais detalhes')">Solicitar detalhes</button><button class="action-btn" onclick="insertTemplate('orientação enviada')">Orientação enviada</button><button class="action-btn" onclick="insertTemplate('resolvido após atendimento')">Resolvido</button></div></div>
-        <div class="detail-card"><h3>Timeline / Auditoria</h3><div class="timeline">${timelineHtml(t)}</div></div>
-        <div class="detail-card"><h3>Anexos</h3><div class="attachments">${attachmentHtml(t)}</div><label class="upload-box">＋ Adicionar novos anexos<input id="modalFiles" type="file" multiple></label></div>
+
+    <div class="t360-grid">
+      <section class="t360-main">
+        <div class="t360-tabs">
+          <button class="active" onclick="switchDetailTab('timeline',this)">Timeline</button>
+          <button onclick="switchDetailTab('conversation',this)">Conversa</button>
+          <button onclick="switchDetailTab('asset',this)">Ativo / CMDB</button>
+          <button onclick="switchDetailTab('costs',this)">Custos</button>
+          <button onclick="switchDetailTab('history',this)">Histórico</button>
+          <button onclick="switchDetailTab('audit',this)">Auditoria</button>
+        </div>
+
+        <div class="t360-pane active" data-tab="timeline">
+          <div class="detail-card t360-card"><h3>Timeline completa do atendimento</h3><div class="timeline premium-timeline">${timelineHtml(t)}</div></div>
+          <div class="detail-card t360-card"><h3>Próximas ações recomendadas</h3><div class="next-actions"><span>Validar evidência</span><span>Atualizar solicitante</span><span>Revisar SLA</span><span>Registrar solução</span></div></div>
+        </div>
+
+        <div class="t360-pane" data-tab="conversation">
+          <div class="detail-card t360-card"><h3>Conversa com o usuário</h3>${conversationHtml(t)}<textarea id="modalComment" placeholder="Digite uma resposta ao usuário ou comentário interno. Tudo fica registrado na auditoria."></textarea><div class="reply-tools"><button class="action-btn" onclick="insertTemplate('solicitamos mais detalhes')">Solicitar detalhes</button><button class="action-btn" onclick="insertTemplate('orientação enviada')">Orientação enviada</button><button class="action-btn" onclick="insertTemplate('resolvido após atendimento')">Resolvido</button></div></div>
+          <div class="detail-card t360-card"><h3>Anexos do chamado</h3><div class="attachments">${attachmentHtml(t)}</div><label class="upload-box">＋ Adicionar novos anexos<input id="modalFiles" type="file" multiple></label></div>
+        </div>
+
+        <div class="t360-pane" data-tab="asset">
+          <div class="detail-card t360-card"><h3>Ativo relacionado</h3>${asset360Html(a,t)}</div>
+          <div class="detail-card t360-card"><h3>Chamados anteriores deste ativo</h3>${relatedTicketHtml(assetTickets,'Nenhum chamado anterior para este ativo.')}</div>
+        </div>
+
+        <div class="t360-pane" data-tab="costs">
+          <div class="detail-card t360-card"><h3>Custos e impacto operacional</h3>${costHtml(cost)}</div>
+          <div class="detail-card t360-card"><h3>Horas e peças</h3><div class="cost-grid"><div><small>Horas técnicas</small><strong>${cost.hours}h</strong></div><div><small>Custo/hora</small><strong>R$ ${cost.hourValue}</strong></div><div><small>Peças</small><strong>R$ ${cost.parts}</strong></div><div><small>Impacto estimado</small><strong>R$ ${cost.impact}</strong></div></div></div>
+        </div>
+
+        <div class="t360-pane" data-tab="history">
+          <div class="detail-card t360-card"><h3>Histórico do solicitante</h3>${requester360Html(t,userTickets)}</div>
+          <div class="detail-card t360-card"><h3>Chamados recentes do solicitante</h3>${relatedTicketHtml(userTickets,'Nenhum outro chamado deste solicitante.')}</div>
+        </div>
+
+        <div class="t360-pane" data-tab="audit">
+          <div class="detail-card t360-card"><h3>Auditoria completa</h3><div class="audit-list">${auditHtml(t)}</div></div>
+        </div>
       </section>
-      <aside class="detail-side">
-        <div class="detail-card"><h3>Propriedades</h3><label>Status</label><select id="modalStatus">${statusList.map(s=>`<option ${s===t.status?'selected':''}>${esc(s)}</option>`).join('')}</select><label>Responsável</label><input id="modalResp" value="${esc(t.responsible)}"><label>Prioridade</label><select id="modalPriority"><option ${t.priority==='Baixa'?'selected':''}>Baixa</option><option ${t.priority==='Média'?'selected':''}>Média</option><option ${t.priority==='Alta'?'selected':''}>Alta</option><option ${t.priority==='Crítica'?'selected':''}>Crítica</option></select></div>
-        <div class="detail-card info-list"><h3>Dados do chamado</h3><p><span>Solicitante</span><strong>${esc(t.requester)}</strong></p><p><span>Setor</span><strong>${esc(t.sector)}</strong></p><p><span>Categoria</span><strong>${esc(t.category)}</strong></p><p><span>Impacto</span><strong>${esc(t.impact)}</strong></p><p><span>Idade</span><strong>${ticketAge(t)}</strong></p><p><span>Criado</span><strong>${fmt(t.createdAt)}</strong></p><p><span>Atualizado</span><strong>${fmt(t.updatedAt)}</strong></p></div>
-        <div class="detail-card asset-box"><h3>Ativo / CMDB</h3>${a?`<strong>${esc(a.id)} - ${esc(a.nome)}</strong><p>${esc(a.tipo)} • ${esc(a.local)}</p><p>Usuário: ${esc(a.usuario)}</p><p>Status: <span class="badge ${a.status==='Crítico'?'Crítica':''}">${esc(a.status)}</span></p><p>Garantia: ${esc(a.garantia)}</p>`:'<p>Nenhum ativo relacionado.</p>'}</div>
+
+      <aside class="t360-side">
+        <div class="detail-card side-status"><h3>Propriedades</h3><label>Status</label><select id="modalStatus">${statusList.map(s=>`<option ${s===t.status?'selected':''}>${esc(s)}</option>`).join('')}</select><label>Responsável</label><input id="modalResp" value="${esc(t.responsible)}"><label>Prioridade</label><select id="modalPriority"><option ${t.priority==='Baixa'?'selected':''}>Baixa</option><option ${t.priority==='Média'?'selected':''}>Média</option><option ${t.priority==='Alta'?'selected':''}>Alta</option><option ${t.priority==='Crítica'?'selected':''}>Crítica</option></select></div>
+        <div class="detail-card info-list"><h3>Dados 360°</h3><p><span>Solicitante</span><strong>${esc(t.requester)}</strong></p><p><span>Setor</span><strong>${esc(t.sector)}</strong></p><p><span>Categoria</span><strong>${esc(t.category)}</strong></p><p><span>Tipo</span><strong>${esc(t.type)}</strong></p><p><span>Impacto</span><strong>${esc(t.impact)}</strong></p><p><span>Idade</span><strong>${ticketAge(t)}</strong></p><p><span>Criado</span><strong>${fmt(t.createdAt)}</strong></p><p><span>Atualizado</span><strong>${fmt(t.updatedAt)}</strong></p></div>
+        <div class="detail-card asset-box"><h3>CMDB rápido</h3>${a?`<strong>${esc(a.id)} - ${esc(a.nome)}</strong><p>${esc(a.tipo)} • ${esc(a.local)}</p><p>Usuário: ${esc(a.usuario)}</p><p>Status: <span class="badge ${a.status==='Crítico'?'Crítica':''}">${esc(a.status)}</span></p><p>Garantia: ${esc(a.garantia)}</p>`:'<p>Nenhum ativo relacionado.</p>'}</div>
+        <div class="detail-card side-money"><h3>Impacto</h3><strong>R$ ${cost.total}</strong><span>Custo/risco estimado</span></div>
       </aside>
     </div>
   </div>`;
-  ticketModal.showModal()
+  if(!ticketModal.open) ticketModal.showModal()
 }
+function ticketCost(t){const map={Baixa:120,Média:420,Alta:1250,Crítica:4800};const hours={Baixa:1,Média:2,Alta:4,Crítica:8}[t.priority]||2;const parts=t.asset?({Impressoras:180,Hardware:260,'Manutenção TI':600}[t.category]||90):0;const hourValue=95;const impact=map[t.priority]||420;const total=hours*hourValue+parts+impact;return{hours,parts,hourValue,impact,total}}
+function conversationHtml(t){const list=[{who:t.requester,side:'user',txt:t.description,time:fmt(t.createdAt)},{who:t.responsible||'Service Desk',side:'agent',txt:(t.history&&t.history[1])?'Recebemos o chamado e iniciamos a análise técnica.':'Chamado recebido para triagem técnica.',time:fmt(t.updatedAt)}];return `<div class="chat-flow">${list.map(m=>`<div class="chat-msg ${m.side}"><div><strong>${esc(m.who)}</strong><p>${esc(m.txt)}</p><small>${esc(m.time)}</small></div></div>`).join('')}</div>`}
+function asset360Html(a,t){if(!a)return '<div class="empty-state">Nenhum ativo vinculado. Ao conectar um ativo, o sistema exibirá garantia, histórico, fornecedor, risco, manuais e chamados recorrentes.</div>';return `<div class="asset-hero"><div class="asset-icon">${a.tipo==='Impressora'?'🖨️':a.tipo==='Servidor'?'🖥️':a.tipo==='Rede'?'🌐':'💻'}</div><div><h2>${esc(a.nome)}</h2><p>${esc(a.id)} • ${esc(a.tipo)} • ${esc(a.local)}</p></div></div><div class="asset-metrics"><div><small>Usuário</small><strong>${esc(a.usuario)}</strong></div><div><small>Status</small><strong>${esc(a.status)}</strong></div><div><small>Risco</small><strong>${esc(a.risco)}</strong></div><div><small>Garantia</small><strong>${esc(a.garantia)}</strong></div></div><div class="next-actions"><span>Manual técnico</span><span>Nota fiscal</span><span>Garantia</span><span>Histórico de manutenção</span></div>`}
+function requester360Html(t,related){const total=tickets.filter(x=>x.requester===t.requester).length;const resolved=tickets.filter(x=>x.requester===t.requester&&isClosed(x)).length;const late=tickets.filter(x=>x.requester===t.requester&&isLate(x)).length;return `<div class="requester-card"><div class="avatar large">${esc(t.requester.split(' ').map(x=>x[0]).slice(0,2).join(''))}</div><div><h2>${esc(t.requester)}</h2><p>${esc(t.sector)} • usuário solicitante</p></div></div><div class="asset-metrics"><div><small>Chamados</small><strong>${total}</strong></div><div><small>Resolvidos</small><strong>${resolved}</strong></div><div><small>Vencidos</small><strong>${late}</strong></div><div><small>Últimos</small><strong>${related.length}</strong></div></div>`}
+function relatedTicketHtml(list,empty){if(!list.length)return `<div class="empty-state">${empty}</div>`;return `<div class="related-list">${list.map(x=>`<button onclick="openTicket('${esc(x.id)}')"><strong>${esc(x.id)}</strong><span>${esc(x.title)}</span><em class="badge ${esc(x.priority)}">${esc(x.priority)}</em></button>`).join('')}</div>`}
+function costHtml(c){return `<div class="money-hero"><small>Total estimado</small><strong>R$ ${c.total}</strong><span>Inclui horas técnicas, peças e impacto operacional estimado.</span></div>`}
+function auditHtml(t){const rows=[`Chamado ${t.id} criado por ${t.requester}`,`SLA calculado automaticamente`,...(t.history||[]),`Última atualização: ${fmt(t.updatedAt)}`];return rows.map((h,i)=>`<div class="audit-row"><span>${String(i+1).padStart(2,'0')}</span><div><strong>${i<2?'Sistema':'Operação'}</strong><p>${esc(h)}</p><small>${i<2?fmt(t.createdAt):fmt(t.updatedAt)}</small></div></div>`).join('')}
+window.switchDetailTab=(tab,btn)=>{document.querySelectorAll('.t360-pane').forEach(p=>p.classList.toggle('active',p.dataset.tab===tab));document.querySelectorAll('.t360-tabs button').forEach(b=>b.classList.remove('active'));btn.classList.add('active')}
 window.insertTemplate=txt=>{modalComment.value+=(modalComment.value?'\n':'')+({
   'solicitamos mais detalhes':'Olá! Para seguir com o atendimento, poderia enviar mais detalhes, print do erro e informar o equipamento/local afetado?',
   'orientação enviada':'Olá! Enviamos uma orientação inicial para correção. Por favor, teste e nos confirme se o problema foi resolvido.',
   'resolvido após atendimento':'Chamado resolvido após atendimento técnico. Permanecemos à disposição caso o problema retorne.'
 }[txt]||txt)}
-window.quickStatus=(id,status)=>{const t=tickets.find(x=>x.id===id);if(!t)return;t.status=status;t.updatedAt=new Date().toISOString();if(status==='Em atendimento')t.responsible='Administrador';if(isClosed(t)&&!t.closedAt)t.closedAt=new Date().toISOString();t.history.push(`Ação rápida: status alterado para ${status}`);saveAll();ticketModal.close();renderAll()}
-window.updateTicket=(id)=>{const t=tickets.find(x=>x.id===id);const old=t.status, oldP=t.priority;t.status=modalStatus.value;t.priority=modalPriority.value;t.responsible=modalResp.value;t.updatedAt=new Date().toISOString();const c=modalComment.value.trim();const newFiles=modalFiles?[...modalFiles.files].map(f=>f.name):[];if(newFiles.length)t.attachments.push(...newFiles);if(old!==t.status)t.history.push(`Status alterado de ${old} para ${t.status}`);if(oldP!==t.priority)t.history.push(`Prioridade alterada de ${oldP} para ${t.priority}`);if(isClosed(t)&&!t.closedAt)t.closedAt=new Date().toISOString();if(c)t.history.push(`Comentário/Resposta: ${c}`);if(newFiles.length)t.history.push(`Anexos adicionados: ${newFiles.join(', ')}`);saveAll();ticketModal.close();renderAll()}
+window.quickStatus=(id,status)=>{const t=tickets.find(x=>x.id===id);if(!t)return;t.status=status;t.updatedAt=new Date().toISOString();if(status==='Em atendimento')t.responsible='Administrador';if(isClosed(t)&&!t.closedAt)t.closedAt=new Date().toISOString();t.history.push(`Ação rápida: status alterado para ${status}`);saveAll();renderAll();openTicket(id)}
+window.updateTicket=(id)=>{const t=tickets.find(x=>x.id===id);const old=t.status, oldP=t.priority;t.status=modalStatus.value;t.priority=modalPriority.value;t.responsible=modalResp.value;t.updatedAt=new Date().toISOString();const c=modalComment.value.trim();const newFiles=modalFiles?[...modalFiles.files].map(f=>f.name):[];if(newFiles.length)t.attachments.push(...newFiles);if(old!==t.status)t.history.push(`Status alterado de ${old} para ${t.status}`);if(oldP!==t.priority)t.history.push(`Prioridade alterada de ${oldP} para ${t.priority}`);if(isClosed(t)&&!t.closedAt)t.closedAt=new Date().toISOString();if(c)t.history.push(`Comentário/Resposta: ${c}`);if(newFiles.length)t.history.push(`Anexos adicionados: ${newFiles.join(', ')}`);saveAll();renderAll();openTicket(id)}
 function clearTicketFilters(){filterSector.value='';filterCategory.value='';filterPriority.value='';filterStatus.value='';filterSla.value='';renderTicketsTable()}
 function openReportCenter(){reportModal.showModal()}
 window.openReportCenter=openReportCenter

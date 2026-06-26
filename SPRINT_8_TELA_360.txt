@@ -1,0 +1,19 @@
+Tosi Support Pro - Sprint 8
+
+Implantado: Tela 360° do Chamado.
+
+Recursos adicionados:
+- Visão 360° ao abrir qualquer chamado.
+- Abas: Timeline, Conversa, Ativo/CMDB, Custos, Histórico e Auditoria.
+- Painel lateral fixo com status, responsável, prioridade, dados do chamado e CMDB rápido.
+- Conversa estilo atendimento/Teams.
+- Cálculo visual de custo e impacto operacional.
+- Histórico do solicitante e chamados relacionados.
+- Auditoria completa de eventos.
+- Visual enterprise para apresentação comercial.
+
+Como testar:
+1. Abrir o sistema.
+2. Entrar com admin@tosi.com.br / 123456.
+3. Acessar Chamados.
+4. Clicar no botão de ações/abrir de qualquer chamado.
