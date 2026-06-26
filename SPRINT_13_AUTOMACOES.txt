@@ -1,0 +1,22 @@
+SPRINT 13 - Central de Automações Enterprise
+
+Implementado no projeto:
+- Novo menu: Automações.
+- Tela Central de Automações com visual Enterprise.
+- KPIs de automações, execuções, falhas e economia estimada.
+- Construtor visual tipo Power Automate.
+- Seleção de automações por template.
+- Painel lateral para editar status, categoria, gatilho e condição.
+- Botão de simulação de execução.
+- Biblioteca de blocos: condição, e-mail, Teams, WhatsApp, delay, criar chamado, mover workflow, SLA, aprovação, PDF, API, auditoria e CMDB.
+- Templates prontos para SLA crítico, acesso/senha, garantia de ativo e chamado parado.
+- Logs recentes de execução.
+
+Como testar:
+1. Rode o projeto normalmente.
+2. Faça login demo: admin@tosi.com.br / 123456.
+3. Clique no menu Automações.
+4. Selecione templates, simule execução, crie nova automação ou edite campos no painel lateral.
+
+Observação:
+Esta sprint entrega a interface e comportamento local/demo. A integração real com Supabase, e-mail, Teams, WhatsApp e execução em background deve ser feita na fase final de back-end.
