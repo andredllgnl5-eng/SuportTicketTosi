@@ -1,0 +1,7 @@
+Sprint 16 - Catálogo de Serviços 360° e Solicitação Guiada
+
+Implementado:
+- Catálogo de serviços com cards premium.
+- Tela Serviço 360° com SLA, fluxo, aprovação, campos obrigatórios, automações e chamados relacionados.
+- Botão Solicitar que preenche automaticamente Novo Chamado com categoria, tipo, prioridade, impacto e modelo de descrição.
+- Integração do Portal do Usuário com abertura da visão 360° dos serviços.

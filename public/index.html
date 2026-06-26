@@ -42,8 +42,9 @@
         </div>
         <div class="top-actions">
           <div class="top-search"><input id="globalSearch" placeholder="Buscar chamados, ativos, usuários, protocolos..."><span>⌕</span></div>
-          <button class="top-icon" title="Caixa de entrada">✉<b class="badge-count">5</b></button>
-          <button class="top-icon" title="Alertas SLA">🔔<b class="badge-count">12</b></button>
+          <button class="top-icon" title="Caixa de entrada" onclick="toggleNotificationCenter()">✉<b id="mailBadge" class="badge-count">5</b></button>
+          <button class="top-icon" title="Alertas SLA" onclick="toggleNotificationCenter()">🔔<b id="alertBadge" class="badge-count">12</b></button>
+          <div id="notificationCenter" class="notification-center hidden"></div>
           <button id="themeBtn" class="top-icon" title="Tema">☾</button>
           <div class="user-pill"><div class="avatar">AD</div><div><strong>Administrador</strong><small>ADM</small></div><span>⌄</span></div>
         </div>
@@ -207,6 +208,46 @@
       </section>
 
 
+      <section id="approvals" class="page approvals-page">
+        <div class="approvals-hero">
+          <div>
+            <span class="eyebrow">Central de Aprovações</span>
+            <h3>Aprovações de TI com SLA, impacto e rastreabilidade</h3>
+            <p>Controle solicitações que exigem liberação de gestor, compras, segurança ou financeiro antes da execução.</p>
+          </div>
+          <div class="approval-hero-actions">
+            <button class="ghost" onclick="resetApprovalsDemo()">Restaurar demo</button>
+            <button class="primary" onclick="createApprovalDemo()">＋ Nova aprovação</button>
+          </div>
+        </div>
+        <div id="approvalKpis" class="approval-kpis"></div>
+        <div class="approval-layout">
+          <div class="card approval-list-card">
+            <div class="approval-toolbar">
+              <div>
+                <h3>Fila de aprovações</h3>
+                <p>Priorize solicitações por impacto, valor, SLA e risco operacional.</p>
+              </div>
+              <select id="approvalFilter" onchange="renderApprovals()">
+                <option value="">Todas</option>
+                <option>Pendente</option>
+                <option>Aprovado</option>
+                <option>Rejeitado</option>
+              </select>
+            </div>
+            <div id="approvalList" class="approval-list"></div>
+          </div>
+          <aside class="card approval-side">
+            <div id="approvalDetail"></div>
+          </aside>
+        </div>
+        <div class="approval-bottom">
+          <div class="card"><h3>Analytics de aprovação</h3><div id="approvalAnalytics"></div></div>
+          <div class="card"><h3>Timeline recente</h3><div id="approvalTimeline"></div></div>
+          <div class="card"><h3>Políticas Enterprise</h3><div id="approvalPolicies"></div></div>
+        </div>
+      </section>
+
 
       <section id="clientPortal" class="page client-portal-page">
         <div class="portal-hero">
@@ -248,7 +289,15 @@
         </div>
       </section>
 
-      <section id="serviceCatalog" class="page"><div class="section-head"><h3>Catálogo de Serviços</h3><p>Serviços padronizados com SLA, responsável e fluxo de atendimento.</p></div><div id="catalogGrid" class="catalog-grid"></div></section>
+      <section id="serviceCatalog" class="page service-catalog-page">
+        <div class="service-catalog-hero">
+          <div><span class="eyebrow">Service Catalog Enterprise</span><h3>Catálogo de Serviços 360°</h3><p>Serviços de TI padronizados com SLA, fluxo, aprovação, automações e solicitação guiada para reduzir erros na abertura de chamados.</p></div>
+          <button class="primary" onclick="openServiceDetail('reset-senha')">Ver exemplo 360°</button>
+        </div>
+        <div class="service-catalog-kpis"><div><small>Serviços publicados</small><strong>8</strong><span>Help Desk TI</span></div><div><small>SLA menor</small><strong>1h</strong><span>Segurança</span></div><div><small>Com automação</small><strong>6</strong><span>Roteamento ativo</span></div><div><small>Autoatendimento</small><strong>100%</strong><span>Portal do usuário</span></div></div>
+        <div id="catalogGrid" class="catalog-grid"></div>
+      </section>
+      <section id="serviceDetail" class="page service-detail-page"><div id="serviceDetailContent"></div></section>
       <section id="knowledge" class="page"><div class="section-head"><h3>Base de conhecimento</h3><p>Artigos e procedimentos para reduzir chamados repetitivos.</p></div><div class="card form-card"><div id="kbList"></div></div></section>
       <section id="reports" class="page"><div class="card report-cover"><img src="./logo-tosi.png" alt="Indústrias Tosi"><div><span class="eyebrow">Relatório Executivo</span><h3>Relatórios Profissionais de TI</h3><p>Excel executivo (.xlsx), PDF gerencial e CSV de compatibilidade para diretoria.</p></div><button class="primary" onclick="openReportCenter()">Abrir Centro de Relatórios</button><button class="ghost" id="printReportBtn">Gerar PDF</button><button class="ghost" onclick="exportExecutiveExcel()">Gerar Excel Executivo</button><button class="ghost" id="reportBtn">Atualizar métricas</button></div><div class="grid-2"><div class="card form-card"><h3>Resumo operacional</h3><div id="reportOps"></div></div><div class="card form-card"><h3>Resumo SLA</h3><div id="reportSla"></div></div></div><div class="card table-card"><div id="reportTable"></div></div></section>
       <section id="settings" class="page"><div class="grid-2"><div class="card form-card"><h3>Departamentos</h3><div id="departmentsList"></div></div><div class="card form-card"><h3>Equipe de suporte</h3><div id="usersList"></div></div></div></section>
