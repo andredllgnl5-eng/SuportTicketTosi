@@ -166,6 +166,43 @@ function showSystemNotice(msg){
 }
 async function refreshData(){await loadFromBackend(); renderAll();}
 
+
+function fillOptions(){
+  const setOptions=(el, values, placeholder='')=>{
+    if(!el) return;
+    const current=el.value;
+    const unique=[...new Set((values||[]).filter(v=>v!==undefined&&v!==null&&String(v).trim()!==''))];
+    el.innerHTML=(placeholder?`<option value="">${esc(placeholder)}</option>`:'')+unique.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');
+    if(current && [...el.options].some(o=>o.value===current)) el.value=current;
+  };
+  const priorityList=['Baixa','Média','Alta','Crítica'];
+  const typeList=['Incidente','Requisição','Problema','Mudança','Acesso'];
+  const impactList=['Baixo','Médio','Alto','Crítico'];
+  setOptions(window.filterSector, departments, 'Todos');
+  setOptions(window.filterCategory, categories, 'Todas');
+  setOptions(window.filterPriority, priorityList, 'Todas');
+  setOptions(window.filterStatus, statusList, 'Todos');
+  if(window.filterSla){
+    const current=filterSla.value;
+    filterSla.innerHTML='<option value="">Todos</option><option value="late">Vencidos</option><option value="ok">Dentro do prazo</option>';
+    if(current && [...filterSla.options].some(o=>o.value===current)) filterSla.value=current;
+  }
+  setOptions(window.ticketSector, departments, 'Selecione');
+  setOptions(window.ticketCategory, categories, 'Selecione');
+  setOptions(window.ticketPriority, priorityList, 'Selecione');
+  setOptions(window.ticketType, typeList, 'Selecione');
+  setOptions(window.ticketImpact, impactList, 'Selecione');
+  if(window.ticketAsset){
+    const current=ticketAsset.value;
+    ticketAsset.innerHTML='<option value="">Sem ativo vinculado</option>'+assets.map(a=>{
+      const tag=a.asset_tag||a.id||'';
+      const name=a.name||a.nome||tag;
+      return `<option value="${esc(tag)}">${esc(tag)} - ${esc(name)}</option>`;
+    }).join('');
+    if(current && [...ticketAsset.options].some(o=>o.value===current)) ticketAsset.value=current;
+  }
+}
+
 function fmtDate(v){return new Date(v).toLocaleDateString('pt-BR')}function fmt(v){return new Date(v).toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'})}
 function isClosed(t){return ['Resolvido','Fechado'].includes(t.status)}function isLate(t){return !isClosed(t)&&new Date(t.slaDueAt)<new Date()}
 function slaPercent(t){if(isClosed(t))return 100;const start=new Date(t.createdAt),due=new Date(t.slaDueAt),now=new Date();const total=due-start;if(total<=0)return 100;return Math.max(0,Math.min(100,Math.round((now-start)/total*100)))}
