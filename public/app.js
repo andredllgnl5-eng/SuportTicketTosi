@@ -808,3 +808,9 @@ async function bootSecureApp(){
   await init();
 }
 bootSecureApp();
+
+function toggleLoginPassword(){
+  const input=document.getElementById('loginPassword');
+  if(!input) return;
+  input.type = input.type === 'password' ? 'text' : 'password';
+}

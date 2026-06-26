@@ -1,13 +1,3 @@
-Tosi Support Pro v24 - Login Premium Animado
-
-Atualização aplicada:
-- Login redesenhado em estilo Enterprise.
-- Logo Indústrias Tosi em branco com efeito de flutuação vertical suave.
-- Selo SUPORTE TI animado.
-- Setas/chevrons com brilho e movimento.
-- Tela de acesso sem demo local e sem credenciais preenchidas.
-- Mantido login real via /api/auth/login com cookie HttpOnly.
-
 Tosi Support Pro v6 - IT Help Desk / ITSM
 
 Atualização: tela individual profissional do chamado com SLA, timeline, comentários, anexos, CMDB e relatório PDF por chamado.
