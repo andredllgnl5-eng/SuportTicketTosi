@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Tosi Ticket | Central de Chamados</title>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <div id="loginScreen" class="login-screen">
+    <section class="login-hero">
+      <img src="./logo-tosi.png" class="login-logo" alt="Indústrias Tosi">
+      <h1>Central de Chamados</h1>
+      <p>Portal corporativo para abertura, atendimento, SLA, Kanban, base de conhecimento e relatórios profissionais.</p>
+      <div class="hero-grid"><span>Tickets</span><span>SLA</span><span>Kanban</span><span>Relatórios</span><span>Anexos</span><span>Departamentos</span></div>
+    </section>
+    <form id="loginForm" class="login-card">
+      <img src="./logo-tosi.png" class="form-logo" alt="Indústrias Tosi">
+      <h2>Entrar no sistema</h2>
+      <label>E-mail</label><input id="loginEmail" type="email" value="admin@tosi.com.br" required>
+      <label>Senha</label><input id="loginPassword" type="password" value="123456" required>
+      <button class="primary">Entrar</button>
+      <small>Demo local: admin@tosi.com.br / 123456</small>
+    </form>
+  </div>
+
+  <div id="app" class="app hidden">
+    <aside class="sidebar">
+      <div class="side-brand"><img src="./logo-tosi-white.png" alt="Indústrias Tosi"></div>
+      <div class="side-label">Menu principal</div>
+      <nav id="nav"></nav>
+      <div class="side-footer"><div class="headset">☏</div><strong>TOSI TICKET</strong><small>Central de Chamados</small><em>v2.0.0</em></div>
+      <button id="logoutBtn" class="side-exit">Sair</button>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <h2 id="pageTitle">Chamados</h2>
+          <p class="crumbs">Home <span>›</span> <span id="pageSubtitle">Chamados</span></p>
+        </div>
+        <div class="top-actions">
+          <div class="top-search"><input id="globalSearch" placeholder="Buscar por protocolo, título, solicitante..."><span>⌕</span></div>
+          <button class="top-icon" title="E-mail">✉<b class="badge-count">5</b></button>
+          <button class="top-icon" title="Notificações">🔔<b class="badge-count">12</b></button>
+          <button id="themeBtn" class="top-icon" title="Tema">☾</button>
+          <div class="user-pill"><div class="avatar">AD</div><div><strong>Administrador</strong><small>ADM</small></div><span>⌄</span></div>
+        </div>
+      </header>
+
+      <section id="dashboard" class="page">
+        <div class="cards stats">
+          <div class="card stat blue"><span class="icon">▣</span><small>Total de Chamados</small><strong id="statTotal">0</strong><em>+12% vs mês anterior</em></div>
+          <div class="card stat orange"><span class="icon">⌁</span><small>Abertos</small><strong id="statOpen">0</strong><em>+8% vs mês anterior</em></div>
+          <div class="card stat purple"><span class="icon">☊</span><small>Em Atendimento</small><strong id="statWork">0</strong><em>-5% vs mês anterior</em></div>
+          <div class="card stat yellow"><span class="icon">⌛</span><small>Aguardando Usuário</small><strong id="statWaiting">0</strong><em>+3% vs mês anterior</em></div>
+          <div class="card stat green"><span class="icon">✓</span><small>Concluídos</small><strong id="statDone">0</strong><em>+18% vs mês anterior</em></div>
+          <div class="card stat red"><span class="icon">!</span><small>Vencidos (SLA)</small><strong id="statLate">0</strong><em>-2% vs mês anterior</em></div>
+        </div>
+        <div class="card filter-panel">
+          <div><label>Período</label><input type="date" id="dateStart"></div>
+          <div><label>Até</label><input type="date" id="dateEnd"></div>
+          <div><label>Setor</label><select id="dashSector"><option value="">Todos</option></select></div>
+          <div><label>Status</label><select id="dashStatus"><option value="">Todos</option></select></div>
+          <button class="primary" onclick="renderAll()">Filtrar</button><button class="ghost" onclick="clearDashboardFilters()">Limpar</button>
+        </div>
+        <div class="dashboard-bottom">
+          <div class="card chart-card"><h3>Chamados por Status</h3><div id="statusDonut"></div></div>
+          <div class="card chart-card"><h3>Chamados por Setor</h3><div id="sectorBars"></div></div>
+          <div class="card chart-card"><h3>SLA - Performance</h3><div id="slaPanel"></div></div>
+          <div class="card chart-card"><h3>Atalhos Rápidos</h3><div class="quick-grid"><button onclick="showPage('newTicket')">＋ Novo Chamado</button><button onclick="showPage('kanban')">▦ Kanban</button><button onclick="showPage('reports')">▧ Relatórios</button><button onclick="showPage('tickets')">♙ Meu Painel</button></div></div>
+        </div>
+        <p class="copyright">© 2026 Indústrias Tosi. Todos os direitos reservados.</p>
+      </section>
+
+      <section id="tickets" class="page active-page">
+        <div class="cards stats">
+          <div class="card stat blue"><span class="icon">▣</span><small>Total de Chamados</small><strong id="statTotalTickets">0</strong><em>+12% vs mês anterior</em></div>
+          <div class="card stat orange"><span class="icon">⌁</span><small>Abertos</small><strong id="statOpenTickets">0</strong><em>+8% vs mês anterior</em></div>
+          <div class="card stat purple"><span class="icon">☊</span><small>Em Atendimento</small><strong id="statWorkTickets">0</strong><em>-5% vs mês anterior</em></div>
+          <div class="card stat yellow"><span class="icon">⌛</span><small>Aguardando Usuário</small><strong id="statWaitingTickets">0</strong><em>+3% vs mês anterior</em></div>
+          <div class="card stat green"><span class="icon">✓</span><small>Concluídos</small><strong id="statDoneTickets">0</strong><em>+18% vs mês anterior</em></div>
+          <div class="card stat red"><span class="icon">!</span><small>Vencidos (SLA)</small><strong id="statLateTickets">0</strong><em>-2% vs mês anterior</em></div>
+        </div>
+        <div class="card filter-panel">
+          <div><label>Período</label><input id="periodText" value="01/05/2025 - 31/05/2025"></div>
+          <div><label>Setor</label><select id="filterSector"><option value="">Todos</option></select></div>
+          <div><label>Categoria</label><select id="filterCategory"><option value="">Todas</option></select></div>
+          <div><label>Prioridade</label><select id="filterPriority"><option value="">Todas</option><option>Baixa</option><option>Média</option><option>Alta</option><option>Crítica</option></select></div>
+          <div><label>Status</label><select id="filterStatus"><option value="">Todos</option></select></div>
+          <div><label>SLA</label><select id="filterSla"><option value="">Todos</option><option value="late">Vencidos</option><option value="ok">No prazo</option></select></div>
+          <button class="primary" onclick="renderTicketsTable()">▽ Filtrar</button>
+          <div class="toolbar-right"><button class="primary" onclick="showPage('newTicket')">＋ Novo Chamado</button><button id="exportBtn" class="ghost">⇩ Exportar</button></div>
+        </div>
+        <div class="card table-card"><div id="ticketsTable"></div></div>
+        <div class="dashboard-bottom">
+          <div class="card chart-card"><h3>Chamados por Status</h3><div id="statusDonutTickets"></div></div>
+          <div class="card chart-card"><h3>Chamados por Setor</h3><div id="sectorBarsTickets"></div></div>
+          <div class="card chart-card"><h3>SLA - Performance</h3><div id="slaPanelTickets"></div></div>
+          <div class="card chart-card"><h3>Atalhos Rápidos</h3><div class="quick-grid"><button onclick="showPage('newTicket')">＋ Novo Chamado</button><button onclick="showPage('kanban')">▦ Kanban</button><button onclick="showPage('reports')">▧ Relatórios</button><button onclick="showPage('settings')">♙ Meu Painel</button></div></div>
+        </div>
+        <p class="copyright">© 2026 Indústrias Tosi. Todos os direitos reservados.</p>
+      </section>
+
+      <section id="newTicket" class="page">
+        <form id="ticketForm" class="card form-card">
+          <h3>Novo chamado</h3>
+          <div class="form-grid"><div><label>Título</label><input id="ticketTitle" required placeholder="Ex: Impressora não imprime"></div><div><label>Setor</label><select id="ticketSector"></select></div><div><label>Categoria</label><select id="ticketCategory"></select></div><div><label>Prioridade</label><select id="ticketPriority"><option>Baixa</option><option selected>Média</option><option>Alta</option><option>Crítica</option></select></div></div>
+          <label>Descrição</label><textarea id="ticketDescription" required placeholder="Descreva o problema, local, equipamento, prints e impacto."></textarea>
+          <div class="form-grid"><div><label>Solicitante</label><input id="ticketRequester" value="Administrador"></div><div><label>Anexos</label><input id="ticketFiles" type="file" multiple></div></div>
+          <button class="primary">Abrir chamado</button>
+        </form>
+      </section>
+
+      <section id="kanban" class="page"><div id="kanbanBoard" class="kanban"></div></section>
+      <section id="knowledge" class="page"><div class="card form-card"><h3>Base de conhecimento</h3><div id="kbList"></div></div></section>
+      <section id="reports" class="page"><div class="card report-cover"><img src="./logo-tosi.png" alt="Indústrias Tosi"><div><h3>Relatórios Gerenciais</h3><p>Indicadores profissionais da central de chamados.</p></div><button class="primary" id="printReportBtn">Imprimir / PDF</button><button class="ghost" id="reportBtn">Gerar Relatório</button></div><div class="grid-2"><div class="card form-card"><h3>Relatório operacional</h3><div id="reportOps"></div></div><div class="card form-card"><h3>Resumo SLA</h3><div id="reportSla"></div></div></div></section>
+      <section id="settings" class="page"><div class="grid-2"><div class="card form-card"><h3>Departamentos</h3><div id="departmentsList"></div><form id="deptForm" class="inline-form"><input id="deptName" placeholder="Novo departamento"><button class="ghost">Adicionar</button></form></div><div class="card form-card"><h3>Usuários</h3><div id="usersList"></div></div></div></section>
+    </main>
+  </div>
+
+  <dialog id="ticketModal"><div id="modalContent"></div><button class="ghost" onclick="ticketModal.close()">Fechar</button></dialog>
+  <script src="./app.js"></script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+TOSI SUPPORT PRO - ROADMAP PARA VALORIZAÇÃO DO HELP DESK
+
+Foco: TI / Help Desk / ITSM. O objetivo é elevar valor percebido com recursos que empresas pagam caro:
+
+1. ITSM real: Incidente, Requisição, Problema, Mudança, Acesso.
+2. SLA por categoria e prioridade, com alertas e relatório executivo.
+3. CMDB / Ativos de TI vinculados aos chamados.
+4. Catálogo de Serviços com SLA e responsável.
+5. Kanban de atendimento e timeline/auditoria em cada chamado.
+6. Relatórios executivos PDF e CSV profissional.
+7. Futuro: Supabase real, autenticação segura, anexos no Storage, e-mail/Outlook, Microsoft 365, Teams, WhatsApp, app PWA offline e push notification.
+
+Próxima etapa recomendada: conectar com Supabase real e transformar os dados demo em banco de produção.
