@@ -49,3 +49,6 @@ SPRINT 12 - Workflow Enterprise
 
 
 SPRINT 14: Portal do Usuário Premium implementado. Acesse pelo menu "Portal do Usuário".
+
+
+SPRINT 18: Business Intelligence Enterprise implementado. Acesse pelo menu Business Intelligence. Inclui KPIs executivos, saúde da TI, heatmap, ranking de técnicos, custos, ativos, exportações e modo TV/NOC.

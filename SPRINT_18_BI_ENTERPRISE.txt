@@ -1,0 +1,19 @@
+SPRINT 18 - Business Intelligence Enterprise
+
+Implementado:
+- Novo menu Business Intelligence.
+- Central executiva com saúde geral da TI.
+- KPIs: chamados, SLA, backlog, críticos, MTTR e CSAT.
+- Tendência operacional com gráfico visual.
+- Ranking de técnicos.
+- Heatmap de incidentes por dia.
+- Chamados por horário.
+- Categorias mais demandadas.
+- Financeiro de TI com custo estimado, horas, peças e prevenção.
+- Mapa de ativos por tipo.
+- Botões para Centro de Relatórios, Excel BI, PDF Executivo e Modo TV/NOC.
+
+Como testar:
+1. Rode npm install e npm run dev.
+2. Faça login demo: admin@tosi.com.br / 123456.
+3. Clique no menu Business Intelligence.
