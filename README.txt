@@ -1,3 +1,13 @@
+Tosi Support Pro v24 - Login Premium Animado
+
+Atualização aplicada:
+- Login redesenhado em estilo Enterprise.
+- Logo Indústrias Tosi em branco com efeito de flutuação vertical suave.
+- Selo SUPORTE TI animado.
+- Setas/chevrons com brilho e movimento.
+- Tela de acesso sem demo local e sem credenciais preenchidas.
+- Mantido login real via /api/auth/login com cookie HttpOnly.
+
 Tosi Support Pro v6 - IT Help Desk / ITSM
 
 Atualização: tela individual profissional do chamado com SLA, timeline, comentários, anexos, CMDB e relatório PDF por chamado.
@@ -19,9 +29,7 @@ Inclui:
 - Tema claro/escuro
 - Proxy Vercel base
 
-Login demo:
-admin@tosi.com.br
-123456
+Login demo removido. Use uma conta real cadastrada em profiles com password_hash.
 
 Como rodar:
 1. Extraia o ZIP
@@ -65,7 +73,7 @@ SPRINT 19 - Central NOC Enterprise
 
 Como testar:
 1. Rode npm install e npm run dev.
-2. Acesse com admin@tosi.com.br / 123456.
+2. Acesse com conta real cadastrada no Supabase.
 3. Clique no menu Central NOC.
 4. Use o botão Modo TV para abrir o painel de monitoramento.
 
@@ -105,3 +113,27 @@ SPRINT 22.1 - Segurança / Proxy First
 - Dados operacionais continuam vindo do Supabase via /api/bootstrap, /api/tickets, /api/assets e /api/approvals.
 - Removidos localStorage para automações/workflow e dados demo de operação.
 - Observação técnica: nenhum front-end web consegue esconder 100% do JavaScript do navegador. Segurança real deve ficar no proxy, Supabase RLS, validação de permissões, JWT/cookie HttpOnly e nunca expor service_role no client.
+
+SPRINT 23 - Segurança Real / Proxy First
+- Login demo removido.
+- Login real via POST /api/auth/login.
+- Sessão via cookie HttpOnly, Secure, SameSite=Strict.
+- Todas as rotas privadas exigem requireAuth().
+- Perfis suportados: ADM, TECNICO, GESTOR, USUARIO.
+- CORS fechado via ALLOWED_ORIGIN.
+- Payloads sanitizados no proxy.
+- Métodos limitados por rota.
+- RLS habilitado nas tabelas do Supabase para bloquear acesso direto anônimo.
+- Front-end não deve usar anon key nem service role; tudo passa pelo proxy.
+
+Primeiro acesso ADM:
+1. Rode schema.sql no Supabase.
+2. Configure SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, JWT_SECRET e ALLOWED_ORIGIN.
+3. Configure ADMIN_BOOTSTRAP_EMAIL e ADMIN_BOOTSTRAP_PASSWORD temporariamente.
+4. Faça login uma vez com o e-mail do ADM.
+5. O proxy grava password_hash no profile.
+6. Remova ADMIN_BOOTSTRAP_PASSWORD da Vercel depois do primeiro login.
+
+Desenvolvimento local:
+- Em localhost sem HTTPS, use AUTH_COOKIE_SECURE=false apenas localmente.
+- Em produção, mantenha AUTH_COOKIE_SECURE=true.

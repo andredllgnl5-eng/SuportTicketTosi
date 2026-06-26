@@ -15,5 +15,5 @@ Implementado:
 
 Como testar:
 1. Rode npm install e npm run dev.
-2. Faça login demo: admin@tosi.com.br / 123456.
+2. Faça login com uma conta real cadastrada no Supabase.
 3. Clique no menu Business Intelligence.

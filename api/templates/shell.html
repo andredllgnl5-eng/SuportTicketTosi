@@ -1,18 +1,37 @@
-<div id="loginScreen" class="login-screen">
-    <section class="login-hero">
-      <img src="./logo-tosi.png" class="login-logo" alt="Indústrias Tosi">
-      <span class="system-badge">ITSM • Help Desk • SLA • Ativos</span>
-      <h1>Tosi Support Pro</h1>
-      <p>Central premium de suporte de TI com chamados, SLA, catálogo de serviços, ativos, incidentes, mudanças, base de conhecimento, relatórios executivos e auditoria.</p>
-      <div class="hero-grid"><span>Service Desk</span><span>SLA</span><span>Kanban</span><span>Ativos TI</span><span>Incidentes</span><span>Relatórios</span></div>
+<div id="loginScreen" class="login-screen premium-login">
+    <section class="login-hero premium-login-hero">
+      <div class="login-network" aria-hidden="true"></div>
+      <div class="premium-logo-stage" aria-label="Indústrias Tosi Support TI">
+        <div class="chevrons chevrons-top" aria-hidden="true"><span></span><span></span></div>
+        <div class="floating-logo-wrap">
+          <img src="./logo-tosi-white.png" class="login-logo premium-floating-logo" alt="Indústrias Tosi">
+          <div class="support-ti-mark"><i></i><strong>SUPORTE <b>TI</b></strong><i></i></div>
+        </div>
+        <div class="chevrons chevrons-bottom" aria-hidden="true"><span></span><span></span></div>
+        <div class="logo-glow" aria-hidden="true"></div>
+      </div>
+      <p class="premium-login-copy">Plataforma completa para <b>gestão de TI</b>, atendimento inteligente e resultados reais.</p>
+      <div class="premium-login-features">
+        <div><span>🎧</span><small>Service Desk</small></div>
+        <div><span>📊</span><small>SLA & Indicadores</small></div>
+        <div><span>📖</span><small>Base de Conhecimento</small></div>
+        <div><span>🛡️</span><small>Segurança e Conformidade</small></div>
+      </div>
+      <footer>© 2026 Indústrias Tosi. Todos os direitos reservados.</footer>
     </section>
-    <form id="loginForm" class="login-card">
-      <img src="./logo-tosi.png" class="form-logo" alt="Indústrias Tosi">
+    <form id="loginForm" class="login-card premium-login-card" autocomplete="on">
+      <div class="login-card-glow" aria-hidden="true"></div>
       <h2>Acessar central</h2>
-      <label>E-mail</label><input id="loginEmail" type="email" value="admin@tosi.com.br" required>
-      <label>Senha</label><input id="loginPassword" type="password" value="123456" required>
-      <button class="primary">Entrar</button>
-      <small>Demo local: admin@tosi.com.br / 123456</small>
+      <p>Entre com suas credenciais para acessar a plataforma <b>Tosi Support Pro</b>.</p>
+      <label for="loginEmail">E-mail corporativo</label>
+      <div class="secure-input"><span>✉</span><input id="loginEmail" type="email" autocomplete="username" placeholder="Digite seu e-mail" required></div>
+      <label for="loginPassword">Senha</label>
+      <div class="secure-input"><span>🔒</span><input id="loginPassword" type="password" autocomplete="current-password" placeholder="Digite sua senha" required><button type="button" class="password-eye" onclick="const i=document.getElementById('loginPassword');i.type=i.type==='password'?'text':'password'">◉</button></div>
+      <div class="login-row"><label class="remember"><input type="checkbox"> <span>Lembrar meu acesso</span></label><button type="button" class="link-btn">Esqueci minha senha</button></div>
+      <button class="primary login-submit">↪ Entrar</button>
+      <div class="login-divider"><span></span><em>ou</em><span></span></div>
+      <button type="button" class="sso-btn">🛡 Acessar com SSO (Azure / Google)</button>
+      <div class="secure-note"><span>🛡</span><div><b>Ambiente seguro</b><small>Seus dados são protegidos por autenticação via proxy, cookie HttpOnly e boas práticas de segurança da informação.</small></div></div>
     </form>
   </div>
 
@@ -21,7 +40,7 @@
       <div class="side-brand"><img src="./logo-tosi-white.png" alt="Indústrias Tosi"></div>
       <div class="side-label">Central de TI</div>
       <nav id="nav"></nav>
-      <div class="side-footer"><div class="headset">⌕</div><strong>TOSI SUPPORT PRO</strong><small>IT Help Desk / ITSM</small><em>v19.0 NOC Enterprise</em></div>
+      <div class="side-footer"><div class="headset">⌕</div><strong>TOSI SUPPORT PRO</strong><small>IT Help Desk / ITSM</small><em>v24.0 Login Premium</em></div>
       <button id="logoutBtn" class="side-exit">Sair</button>
     </aside>
 
@@ -355,7 +374,7 @@
       </section>
       <section id="user360Details" class="user360-card user360-details">
         <h4>Resumo da sessão</h4>
-        <div><span>E-mail</span><b id="panelUserEmail">admin@tosi.com.br</b></div>
+        <div><span>E-mail</span><b id="panelUserEmail"></b></div>
         <div><span>Departamento</span><b id="panelUserSector">TI</b></div>
         <div><span>Perfil</span><b id="panelUserProfile">ADM</b></div>
         <div><span>Último acesso</span><b>Agora</b></div>

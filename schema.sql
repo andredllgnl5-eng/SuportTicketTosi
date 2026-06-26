@@ -120,7 +120,7 @@ create index if not exists idx_assets_tag on assets(asset_tag);
 
 -- Opcional para começar com usuário ADM real sem criar chamados/ativos falsos.
 insert into profiles (name,email,role,sector)
-values ('Administrador','admin@tosi.com.br','ADM','TI')
+values ('Administrador','admin@seudominio.com.br','ADM','TI')
 on conflict (email) do update set name=excluded.name, role=excluded.role, sector=excluded.sector, updated_at=now();
 
 
@@ -137,3 +137,46 @@ alter table approvals add column if not exists risk text;
 alter table approvals add column if not exists sla_label text;
 create index if not exists idx_approvals_status on approvals(status);
 create index if not exists idx_approvals_created_at on approvals(created_at desc);
+
+-- =========================================================
+-- Sprint 23 - Segurança Real / Proxy First
+-- =========================================================
+
+alter table profiles add column if not exists password_hash text;
+alter table profiles add column if not exists password_updated_at timestamptz;
+alter table profiles add column if not exists last_login_at timestamptz;
+
+-- O acesso demo foi removido. Para criar a primeira senha do ADM:
+-- 1) Configure ADMIN_BOOTSTRAP_EMAIL e ADMIN_BOOTSTRAP_PASSWORD na Vercel.
+-- 2) Faça login uma vez com esse e-mail/senha.
+-- 3) O proxy gravará password_hash no perfil ADM.
+-- 4) Remova ADMIN_BOOTSTRAP_PASSWORD das variáveis depois do primeiro login.
+
+-- Segurança do banco: impedir acesso direto anônimo às tabelas.
+alter table profiles enable row level security;
+alter table assets enable row level security;
+alter table tickets enable row level security;
+alter table ticket_comments enable row level security;
+alter table ticket_attachments enable row level security;
+alter table audit_logs enable row level security;
+alter table approvals enable row level security;
+alter table automations enable row level security;
+alter table noc_snapshots enable row level security;
+
+-- Remove policies antigas com mesmo nome, se existirem.
+drop policy if exists "deny_anon_profiles" on profiles;
+drop policy if exists "deny_anon_assets" on assets;
+drop policy if exists "deny_anon_tickets" on tickets;
+drop policy if exists "deny_anon_ticket_comments" on ticket_comments;
+drop policy if exists "deny_anon_ticket_attachments" on ticket_attachments;
+drop policy if exists "deny_anon_audit_logs" on audit_logs;
+drop policy if exists "deny_anon_approvals" on approvals;
+drop policy if exists "deny_anon_automations" on automations;
+drop policy if exists "deny_anon_noc_snapshots" on noc_snapshots;
+
+-- Sem políticas permissivas para anon. O front-end não deve usar Supabase direto.
+-- O acesso legítimo ocorre somente pelo proxy com SERVICE_ROLE_KEY protegida em variável de ambiente.
+
+-- Índices úteis para autenticação e auditoria.
+create index if not exists idx_profiles_email_active on profiles(email, active);
+create index if not exists idx_audit_logs_entity_created on audit_logs(entity, created_at desc);

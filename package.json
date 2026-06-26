@@ -1,6 +1,6 @@
 {
   "name": "tosi-support-pro",
-  "version": "21.0.0",
+  "version": "23.0.0",
   "type": "module",
   "scripts": {
     "dev": "vercel dev",

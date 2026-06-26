@@ -23,17 +23,27 @@ let appUser=null;
 let backendReady=false;
 const navItems=[['dashboard','⌂','Dashboard'],['tickets','▣','Chamados'],['newTicket','＋','Novo Chamado'],['clientPortal','◉','Portal do Usuário'],['kanban','▦','Kanban'],['workflow','⟲','Workflow'],['automations','⚡','Automações'],['approvals','✓','Aprovações'],['serviceCatalog','◈','Catálogo de Serviços'],['assets','▥','Ativos TI / CMDB'],['knowledge','▤','Base de Conhecimento'],['reports','▧','Relatórios'],['bi','📊','Business Intelligence'],['noc','🖥','Central NOC'],['settings','⚙','Configurações']];
 function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
-function saveAll(){
-  localStorage.setItem(KEY,JSON.stringify(tickets));
-  publishNocSnapshot(false);
-}
+function saveAll(){ publishNocSnapshot(false); }
 
 async function api(path, options={}){
-  const res=await fetch('/api'+path,{...options,headers:{'Content-Type':'application/json',...(options.headers||{})}});
+  const res=await fetch('/api'+path,{...options,credentials:'include',headers:{'Content-Type':'application/json',...(options.headers||{})}});
   const type=res.headers.get('content-type')||'';
   const data=type.includes('application/json')?await res.json():await res.text();
+  if(res.status===401){ appUser=null; if(window.app&&window.loginScreen){app.classList.add('hidden'); loginScreen.classList.remove('hidden')} throw new Error((data&&data.error)||'Sessão expirada. Faça login novamente.'); }
   if(!res.ok || (data && data.ok===false)) throw new Error((data&&data.error)||'Falha na API');
   return data;
+}
+async function login(email,password){
+  const data=await api('/auth/login',{method:'POST',body:JSON.stringify({email,password})});
+  appUser=data.user;
+  return data.user;
+}
+async function logout(){
+  try{await api('/auth/logout',{method:'POST',body:'{}'});}catch(e){}
+  appUser=null; app.classList.add('hidden'); loginScreen.classList.remove('hidden');
+}
+async function checkSession(){
+  try{const data=await api('/auth/me'); appUser=data.user; return true;}catch(e){return false;}
 }
 
 async function loadFrontendConfig(){
@@ -160,17 +170,25 @@ function fmtDate(v){return new Date(v).toLocaleDateString('pt-BR')}function fmt(
 function isClosed(t){return ['Resolvido','Fechado'].includes(t.status)}function isLate(t){return !isClosed(t)&&new Date(t.slaDueAt)<new Date()}
 function slaPercent(t){if(isClosed(t))return 100;const start=new Date(t.createdAt),due=new Date(t.slaDueAt),now=new Date();const total=due-start;if(total<=0)return 100;return Math.max(0,Math.min(100,Math.round((now-start)/total*100)))}
 async function init(){
-  try{await loadFrontendConfig()}catch(e){showSystemNotice('Não foi possível carregar configuração protegida do proxy: '+e.message)}
   nav.innerHTML=navItems.map(([id,ic,label])=>`<button class="nav-btn" data-page="${id}"><span>${ic}</span>${label}</button>`).join('');
   document.querySelectorAll('.nav-btn').forEach(b=>b.onclick=()=>showPage(b.dataset.page));
   loginForm.onsubmit=async e=>{
     e.preventDefault();
-    loginScreen.classList.add('hidden'); app.classList.remove('hidden');
-    showPage('dashboard');
-    await loadFromBackend();
-    renderAll();
+    const btn=loginForm.querySelector('button'); const oldText=btn.textContent; btn.disabled=true; btn.textContent='Entrando...';
+    try{
+      await login(loginEmail.value,loginPassword.value);
+      await loadFrontendConfig();
+      fillOptions();
+      loginScreen.classList.add('hidden'); app.classList.remove('hidden');
+      showPage('dashboard');
+      await loadFromBackend();
+      renderAll();
+      syncUserPanel();
+      startNocLiveLoop();
+    }catch(err){alert(err.message||'Falha no login');}
+    finally{btn.disabled=false; btn.textContent=oldText;}
   };
-  logoutBtn.onclick=()=>{app.classList.add('hidden');loginScreen.classList.remove('hidden')};
+  logoutBtn.onclick=logout;
   if(window.userPanelBtn) userPanelBtn.onclick=openUserPanel;
   document.addEventListener('keydown',e=>{if(e.key==='Escape')closeUserPanel()});
   themeBtn.onclick=()=>document.body.classList.toggle('dark');
@@ -179,9 +197,13 @@ async function init(){
   globalSearch.oninput=()=>{if(document.querySelector('#tickets.active-page'))renderTicketsTable()};
   ['filterSector','filterCategory','filterPriority','filterStatus','filterSla'].forEach(id=>$(id).onchange=renderTicketsTable);
   fillOptions(); showPage('dashboard'); renderAll();
+  if(await checkSession()){
+    try{await loadFrontendConfig(); fillOptions(); loginScreen.classList.add('hidden'); app.classList.remove('hidden'); await loadFromBackend(); renderAll(); syncUserPanel(); startNocLiveLoop();}
+    catch(e){showSystemNotice('Sessão encontrada, mas não foi possível carregar dados: '+e.message)}
+  }
 }
 function showPage(id){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active-page'));$(id).classList.add('active-page');document.querySelectorAll('.nav-btn').forEach(b=>b.classList.toggle('active',b.dataset.page===id));const titles={dashboard:'Dashboard Executivo',tickets:'Chamados',ticketDetail:'Chamado 360°',newTicket:'Novo Chamado',kanban:'Kanban',serviceCatalog:'Catálogo de Serviços',assets:'CMDB Enterprise',knowledge:'Base de Conhecimento',reports:'Relatórios',settings:'Configurações',assetDetail:'Ativo 360°',workflow:'Workflow Enterprise',automations:'Automações Enterprise',clientPortal:'Portal do Usuário Premium',serviceDetail:'Serviço 360°',approvals:'Aprovações Enterprise',bi:'Business Intelligence',noc:'Central NOC Enterprise'};pageTitle.textContent=titles[id]||'Tosi Support Pro';pageSubtitle.textContent=titles[id]||'';renderAll();}
-function currentUser(){return appUser||users[0]||{name:'Administrador',email:'admin@tosi.com.br',role:'ADM',sector:'TI'}}
+function currentUser(){return appUser||users[0]||{name:'Usuário',email:'',role:'USUARIO',sector:'TI'}}
 function syncUserPanel(){
   const u=currentUser();
   const initials=(u.name||'AD').split(/\s+/).filter(Boolean).slice(0,2).map(x=>x[0]).join('').toUpperCase()||'AD';
@@ -190,7 +212,7 @@ function syncUserPanel(){
   if(window.topUserRole) topUserRole.textContent=u.role||'ADM';
   if(window.panelUserName) panelUserName.textContent=u.name||'Administrador';
   if(window.panelUserRole) panelUserRole.textContent=(u.role||'ADM')+' • '+(u.sector||'TI');
-  if(window.panelUserEmail) panelUserEmail.textContent=u.email||'admin@tosi.com.br';
+  if(window.panelUserEmail) panelUserEmail.textContent=u.email||'';
   if(window.panelUserSector) panelUserSector.textContent=u.sector||'TI';
   if(window.panelUserProfile) panelUserProfile.textContent=u.role||'ADM';
 }
@@ -198,13 +220,13 @@ function openUserPanel(){syncUserPanel(); userPanelOverlay.classList.remove('hid
 function closeUserPanel(){if(!window.user360Panel)return; user360Panel.classList.remove('open'); setTimeout(()=>{user360Panel.classList.add('hidden'); userPanelOverlay.classList.add('hidden')},180)}
 function openUserSection(section){
   const content={
-    perfil:`<h4>Perfil</h4><div><span>Nome</span><b>${esc(currentUser().name||'Administrador')}</b></div><div><span>E-mail</span><b>${esc(currentUser().email||'admin@tosi.com.br')}</b></div><div><span>Departamento</span><b>${esc(currentUser().sector||'TI')}</b></div><div><span>Cargo</span><b>${esc(currentUser().role||'ADM')}</b></div>`,
+    perfil:`<h4>Perfil</h4><div><span>Nome</span><b>${esc(currentUser().name||'Administrador')}</b></div><div><span>E-mail</span><b>${esc(currentUser().email||'')}</b></div><div><span>Departamento</span><b>${esc(currentUser().sector||'TI')}</b></div><div><span>Cargo</span><b>${esc(currentUser().role||'ADM')}</b></div>`,
     conta:`<h4>Conta e segurança</h4><div><span>Status da conta</span><b>Ativa</b></div><div><span>2FA</span><b>Recomendado</b></div><div><span>Sessões ativas</span><b>1 sessão</b></div><div><span>Alterar senha</span><b>Disponível após autenticação real</b></div>`,
     gerenciar:`<h4>Gerenciar conta</h4><div><span>Tema</span><b>Claro/Escuro</b></div><div><span>Notificações</span><b>E-mail e alertas internos</b></div><div><span>Permissões</span><b>${esc(currentUser().role||'ADM')}</b></div><div><span>Preferências</span><b>Idioma PT-BR</b></div>`
   };
   user360Details.innerHTML=content[section]||content.perfil;
 }
-function logoutFromPanel(){closeUserPanel(); app.classList.add('hidden'); loginScreen.classList.remove('hidden')}
+async function logoutFromPanel(){closeUserPanel(); await logout()}
 window.openUserPanel=openUserPanel;window.closeUserPanel=closeUserPanel;window.openUserSection=openUserSection;window.logoutFromPanel=logoutFromPanel;
 
 function filteredTickets(){const q=globalSearch.value?.toLowerCase().trim()||'';return tickets.filter(t=>(!q||[t.id,t.title,t.requester,t.sector,t.category,t.status,t.asset].join(' ').toLowerCase().includes(q))&&(!filterSector.value||t.sector===filterSector.value)&&(!filterCategory.value||t.category===filterCategory.value)&&(!filterPriority.value||t.priority===filterPriority.value)&&(!filterStatus.value||t.status===filterStatus.value)&&(!filterSla.value||(filterSla.value==='late'?isLate(t):!isLate(t))))}
@@ -585,7 +607,6 @@ function buildNocSnapshot(){
 }
 function publishNocSnapshot(syncBackend=true){
   const snapshot=buildNocSnapshot();
-  try{localStorage.setItem(NOC_SNAPSHOT_KEY,JSON.stringify(snapshot));}catch(e){}
   if(syncBackend) syncNocSnapshot(snapshot);
   return snapshot;
 }
@@ -594,16 +615,16 @@ async function syncNocSnapshot(snapshot=buildNocSnapshot()){
   if(now-lastNocSyncAt<5000) return;
   lastNocSyncAt=now;
   try{
-    await fetch('/api/noc-snapshot',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({snapshot,tickets,assets})});
+    await fetch('/api/noc-snapshot',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({snapshot,tickets,assets})});
   }catch(e){}
 }
 async function loadNocSnapshot(){
   try{
-    const res=await fetch('/api/noc-snapshot',{cache:'no-store'});
+    const res=await fetch('/api/noc-snapshot',{cache:'no-store',credentials:'include'});
     const data=await res.json();
     if(data && data.ok && data.snapshot) return data.snapshot;
   }catch(e){}
-  try{return JSON.parse(localStorage.getItem(NOC_SNAPSHOT_KEY)||'null')||buildNocSnapshot();}catch(e){return buildNocSnapshot();}
+  return buildNocSnapshot();
 }
 function startNocLiveLoop(){
   clearInterval(nocRenderTimer);
@@ -616,12 +637,6 @@ function startNocLiveLoop(){
   nocBackendTimer=setInterval(()=>publishNocSnapshot(true),5000);
   publishNocSnapshot(true);
 }
-window.addEventListener('storage',e=>{
-  if(e.key===KEY || e.key===NOC_SNAPSHOT_KEY){
-    if(document.querySelector('#noc.active-page')) renderNOC(false);
-  }
-});
-
 function renderNOC(sync=true){
   if(!window.nocPanel)return;
   const snap=publishNocSnapshot(sync);
@@ -694,9 +709,9 @@ window.openNocTvMode=()=>{
       function fallback(){return {health:0,open:0,late:0,online:0,serviceTotal:0,securityBlocks:0,networkStatus:'--',backupStatus:'--',generatedAt:new Date().toISOString(),services:[],timeline:[]};}
       async function load(){
         let snap=null;
-        try{snap=JSON.parse(localStorage.getItem(KEY)||'null')}catch(e){}
+        snap=null
         try{
-          const res=await fetch('/api/noc-snapshot',{cache:'no-store'});
+          const res=await fetch('/api/noc-snapshot',{cache:'no-store',credentials:'include'});
           const data=await res.json();
           if(data&&data.ok&&data.snapshot) snap=data.snapshot;
         }catch(e){}
@@ -719,12 +734,10 @@ window.openNocTvMode=()=>{
         tvTimeline.innerHTML=(s.timeline||[]).slice(0,5).map(x=>'<div class="event '+(x[2]||'')+'"><small>'+x[0]+'</small><b>'+x[1]+'</b></div>').join('');
       }
       setInterval(paint,1000);
-      window.addEventListener('storage',e=>{if(e.key===KEY)paint()});
       paint();
     </script></body></html>`;
   w.document.write(html);w.document.close();
 }
-startNocLiveLoop();
 
 function renderReports(){if(!reportOps)return;const total=tickets.length,closed=tickets.filter(isClosed).length,late=tickets.filter(isLate).length;reportOps.innerHTML=`<div class="report-metric"><span>Total de chamados</span><strong>${total}</strong></div><div class="report-metric"><span>Resolvidos/fechados</span><strong>${closed}</strong></div><div class="report-metric"><span>Taxa de conclusão</span><strong>${total?Math.round(closed/total*100):0}%</strong></div><div class="report-metric"><span>Backlog operacional</span><strong>${total-closed}</strong></div>`;reportSla.innerHTML=`<div class="report-metric"><span>SLA vencido</span><strong>${late}</strong></div><div class="report-metric"><span>Críticos em aberto</span><strong>${tickets.filter(t=>(t.priority==='Crítica'||t.priority==='Alta')&&!isClosed(t)).length}</strong></div><div class="report-metric"><span>Dentro do prazo</span><strong>${total-late}</strong></div>`;if(reportTable)reportTable.innerHTML=`<div class="table-wrap"><table class="table"><thead><tr><th>Indicador</th><th>Indicador</th><th>Comentário executivo</th></tr></thead><tbody><tr><td>MTTR médio</td><td>3h20m</td><td>Tempo médio competitivo para suporte interno.</td></tr><tr><td>Chamados críticos</td><td>${tickets.filter(t=>t.priority==='Crítica'||t.priority==='Alta').length}</td><td>Requer acompanhamento do gestor de TI.</td></tr><tr><td>Ativos impactados</td><td>${new Set(tickets.map(t=>t.asset).filter(Boolean)).size}</td><td>Vínculo com CMDB agrega rastreabilidade.</td></tr></tbody></table></div>`}
 function renderSettings(){if(!departmentsList)return;departmentsList.innerHTML=departments.map(d=>`<span class="chip">${esc(d)}</span>`).join('');usersList.innerHTML=users.map(u=>`<div class="ticket-item"><div><strong>${esc(u.name)}</strong><br><small>${esc(u.email)} • ${esc(u.sector)}</small></div><span class="badge">${esc(u.role)}</span></div>`).join('')}
@@ -771,7 +784,7 @@ async function exportExecutiveExcel(){
   const btn=typeof exportBtn!=='undefined'?exportBtn:null; const old=btn?btn.innerHTML:''; if(btn){btn.disabled=true;btn.innerHTML='⏳ Gerando Excel...'}
   try{
     const payload={tickets:filteredTickets()};
-    const r=await fetch('/api/report-excel',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    const r=await fetch('/api/report-excel',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
     if(!r.ok) throw new Error('Falha na API de relatório');
     const blob=await r.blob();
     downloadBlob(blob,`TosiSupportPro_Relatorio_Executivo_TI_${new Date().toISOString().slice(0,10)}.xlsx`);

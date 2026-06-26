@@ -17,7 +17,7 @@ Implementado:
 
 Como testar:
 1. Rode o projeto.
-2. Entre com admin@tosi.com.br / 123456.
+2. Entre com uma conta real cadastrada no Supabase.
 3. Clique no menu Central NOC.
 4. Clique em Modo TV para abrir o painel de monitoramento em tela separada.
 
