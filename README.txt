@@ -51,7 +51,7 @@ SPRINT 12 - Workflow Enterprise
 SPRINT 14: Portal do Usuário Premium implementado. Acesse pelo menu "Portal do Usuário".
 
 
-SPRINT 18: Business Intelligence Enterprise implementado. Acesse pelo menu Business Intelligence. Inclui KPIs executivos, saúde da TI, heatmap, ranking de técnicos, custos, ativos, exportações e modo TV/NOC.
+SPRINT 18: Business Intelligence Enterprise implementado. Acesse pelo menu Business Intelligence. Inclui KPIs executivos, saúde da TI, heatmap, ranking de técnicos, indicadores, ativos, exportações e modo TV/NOC.
 
 
 SPRINT 19: Central NOC Enterprise implementada. Acesse pelo menu "Central NOC". Inclui monitoramento visual de serviços, rede, Microsoft 365, firewall, impressoras, mapa da empresa, linha do tempo, recomendações e Modo TV.

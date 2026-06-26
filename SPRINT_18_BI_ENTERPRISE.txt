@@ -9,7 +9,7 @@ Implementado:
 - Heatmap de incidentes por dia.
 - Chamados por horário.
 - Categorias mais demandadas.
-- Financeiro de TI com custo estimado, horas, peças e prevenção.
+- Operação de TI com SLA, backlog, disponibilidade, ativos e tendência de incidentes.
 - Mapa de ativos por tipo.
 - Botões para Centro de Relatórios, Excel BI, PDF Executivo e Modo TV/NOC.
 

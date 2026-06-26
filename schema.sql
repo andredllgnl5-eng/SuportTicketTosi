@@ -89,7 +89,6 @@ create table if not exists approvals (
   title text not null,
   requester_name text,
   status text not null default 'Pendente',
-  amount numeric(14,2),
   priority text default 'Média',
   payload jsonb default '{}'::jsonb,
   created_at timestamptz default now(),

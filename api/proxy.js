@@ -77,13 +77,13 @@ async function buildExcelReport(tickets=[]){
   const resumo=wb.addWorksheet('Resumo Executivo',{views:[{showGridLines:false}]});
   styleTitle(resumo,'INDÚSTRIAS TOSI - TOSI SUPPORT PRO','Relatório Executivo de Chamados de TI | Gerado em '+now.toLocaleString('pt-BR'));
   resumo.getColumn(1).width=24; resumo.getColumn(2).width=18; resumo.getColumn(3).width=18; resumo.getColumn(4).width=18; resumo.getColumn(5).width=18; resumo.getColumn(6).width=18;
-  const kpiRows=[['Indicador','Valor','Descrição'],['Total de chamados',totals.total,'Volume total filtrado'],['Abertos',totals.open,'Chamados aguardando triagem'],['Em atendimento',totals.work,'Chamados em suporte'],['Aguardando usuário',totals.wait,'Pendentes de retorno'],['Resolvidos/Fechados',totals.closed,'Finalizados'],['SLA vencido',totals.late,'Itens críticos']];
+  const kpiRows=[['Indicador','Indicador','Descrição'],['Total de chamados',totals.total,'Volume total filtrado'],['Abertos',totals.open,'Chamados aguardando triagem'],['Em atendimento',totals.work,'Chamados em suporte'],['Aguardando usuário',totals.wait,'Pendentes de retorno'],['Resolvidos/Fechados',totals.closed,'Finalizados'],['SLA vencido',totals.late,'Itens críticos']];
   resumo.addRows([[],...kpiRows]);
   styleHeader(resumo.getRow(4));
   for(let r=5;r<=10;r++){resumo.getRow(r).height=24; resumo.getCell(r,2).font={bold:true,size:14,color:{argb:'FF004B8D'}};}
   resumo.getRange?.('A4:C10');
   ['A4:C10'].forEach(()=>{});
-  resumo.addTable({name:'ResumoExecutivo',ref:'A4',headerRow:true,style:{theme:'TableStyleMedium2',showRowStripes:true},columns:[{name:'Indicador'},{name:'Valor'},{name:'Descrição'}],rows:kpiRows.slice(1)});
+  resumo.addTable({name:'ResumoExecutivo',ref:'A4',headerRow:true,style:{theme:'TableStyleMedium2',showRowStripes:true},columns:[{name:'Indicador'},{name:'Indicador'},{name:'Descrição'}],rows:kpiRows.slice(1)});
   resumo.getCell('E4').value='SLA'; resumo.getCell('F4').value='Quantidade'; styleHeader(resumo.getRow(4));
   const slaRows=[['Dentro do prazo',filtered.length-totals.late],['Vencidos',totals.late],['Taxa de cumprimento',totals.total?Math.round((filtered.length-totals.late)/totals.total*100)+'%':'0%']];
   resumo.getCell('E5').value='Dentro do prazo'; resumo.getCell('F5').value=filtered.length-totals.late;
@@ -253,7 +253,7 @@ async function createApproval(body){
     title:body.title,
     requester_name:body.requester_name||body.requester||null,
     status:body.status||'Pendente',
-    amount:body.amount??body.value??0,
+    
     priority:body.priority||'Média',
     payload:body.payload||{
       type:body.type||'Solicitação TI', department:body.department||'', approver:body.approver||'',
@@ -269,7 +269,7 @@ async function updateApproval(id, body){
   const patch={};
   if(body.status) patch.status=body.status;
   if(body.title) patch.title=body.title;
-  if(body.amount!==undefined || body.value!==undefined) patch.amount=body.amount??body.value;
+  
   if(body.priority) patch.priority=body.priority;
   if(body.payload) patch.payload=body.payload;
   patch.updated_at=new Date().toISOString();
