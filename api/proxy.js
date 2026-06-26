@@ -1,6 +1,7 @@
 import ExcelJS from 'exceljs';
 import fs from 'fs';
 import path from 'path';
+import crypto from 'crypto';
 
 function readJsonBody(req){
   return new Promise((resolve,reject)=>{
@@ -202,7 +203,7 @@ async function createAudit(entity, entity_id, action, payload={}){
 async function getBootstrap(){
   if(!hasSupabase()) return {connected:false, profiles:[], tickets:[], assets:[], approvals:[], automations:[], config:publicConfig()};
   const [profiles,tickets,assets,approvals,automations]=await Promise.all([
-    dbSelect('profiles','select=*&order=created_at.desc'),
+    dbSelect('profiles','select=id,name,email,role,sector,active,created_at,updated_at&order=created_at.desc'),
     dbSelect('tickets','select=*&order=created_at.desc'),
     dbSelect('assets','select=*&order=created_at.desc'),
     dbSelect('approvals','select=*&order=created_at.desc'),
@@ -314,11 +315,106 @@ async function getNocSnapshot(){
 }
 
 
+
+
+// ===== Segurança v23: autenticação real, JWT em cookie HttpOnly e permissões =====
+const COOKIE_NAME = 'tosi_support_session';
+const JWT_SECRET = process.env.JWT_SECRET || '';
+const ROLE_LEVEL = { USUARIO: 1, TÉCNICO: 2, TECNICO: 2, GESTOR: 3, ADM: 4, ADMIN: 4, ADMINISTRADOR: 4 };
+function normalizeRole(role){
+  const r=String(role||'USUARIO').trim().toUpperCase();
+  if(r==='TÉCNICO') return 'TECNICO';
+  if(r==='ADMINISTRADOR'||r==='ADMIN') return 'ADM';
+  return ['ADM','TECNICO','GESTOR','USUARIO'].includes(r)?r:'USUARIO';
+}
+function roleLevel(role){return ROLE_LEVEL[normalizeRole(role)]||1;}
+function base64url(input){return Buffer.from(input).toString('base64').replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_');}
+function base64urlJson(obj){return base64url(JSON.stringify(obj));}
+function signJwt(payload, ttlSeconds=60*60*8){
+  if(!JWT_SECRET || JWT_SECRET.length<24) throw Object.assign(new Error('JWT_SECRET não configurado ou muito curto'),{status:500});
+  const header={alg:'HS256',typ:'JWT'};
+  const now=Math.floor(Date.now()/1000);
+  const body={...payload,iat:now,exp:now+ttlSeconds};
+  const data=base64urlJson(header)+'.'+base64urlJson(body);
+  const sig=crypto.createHmac('sha256',JWT_SECRET).update(data).digest('base64').replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_');
+  return data+'.'+sig;
+}
+function verifyJwt(token){
+  if(!JWT_SECRET || !token) return null;
+  const parts=String(token).split('.');
+  if(parts.length!==3) return null;
+  const data=parts[0]+'.'+parts[1];
+  const expected=crypto.createHmac('sha256',JWT_SECRET).update(data).digest('base64').replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_');
+  const a=Buffer.from(expected), b=Buffer.from(parts[2]);
+  if(a.length!==b.length || !crypto.timingSafeEqual(a,b)) return null;
+  try{const payload=JSON.parse(Buffer.from(parts[1].replace(/-/g,'+').replace(/_/g,'/'),'base64').toString('utf8')); if(payload.exp && payload.exp<Math.floor(Date.now()/1000)) return null; return payload;}catch(e){return null;}
+}
+function parseCookies(req){return Object.fromEntries(String(req.headers.cookie||'').split(';').map(x=>x.trim()).filter(Boolean).map(x=>{const i=x.indexOf('='); return [decodeURIComponent(i>=0?x.slice(0,i):x), decodeURIComponent(i>=0?x.slice(i+1):'')];}));}
+function cookieSecureFlag(){return process.env.AUTH_COOKIE_SECURE==='false'?'':'Secure; ';}
+function setSessionCookie(res, token){res.setHeader('Set-Cookie', `${COOKIE_NAME}=${encodeURIComponent(token)}; Path=/; HttpOnly; ${cookieSecureFlag()}SameSite=Strict; Max-Age=${60*60*8}`);}
+function clearSessionCookie(res){res.setHeader('Set-Cookie', `${COOKIE_NAME}=; Path=/; HttpOnly; ${cookieSecureFlag()}SameSite=Strict; Max-Age=0`);}
+function requireAuth(req, roles=[]){const token=parseCookies(req)[COOKIE_NAME]; const user=verifyJwt(token); if(!user) throw Object.assign(new Error('Não autenticado'),{status:401}); if(roles.length && !roles.some(r=>roleLevel(user.role)>=roleLevel(r))) throw Object.assign(new Error('Acesso negado'),{status:403}); return user;}
+function requireMethod(req, allowed){if(!allowed.includes(req.method)) throw Object.assign(new Error('Método não permitido'),{status:405});}
+function safeText(v,max=500){return String(v??'').replace(/[\u0000-\u001F\u007F]/g,' ').trim().slice(0,max);}
+function safeEnum(v, allowed, fallback){v=safeText(v,60); return allowed.includes(v)?v:fallback;}
+function sanitizeTicketPayload(body={}, mode='create'){
+  const out={};
+  if(mode==='create' || body.title!==undefined) out.title=safeText(body.title,160);
+  if(mode==='create' || body.description!==undefined) out.description=safeText(body.description,5000);
+  if(body.sector!==undefined) out.sector=safeText(body.sector,80)||'TI';
+  if(body.category!==undefined) out.category=safeText(body.category,100)||'Suporte Técnico';
+  if(body.priority!==undefined) out.priority=safeEnum(body.priority,['Baixa','Média','Alta','Crítica'],'Média');
+  if(body.status!==undefined) out.status=safeEnum(body.status,['Aberto','Em atendimento','Aguardando usuário','Resolvido','Fechado'],'Aberto');
+  if(body.type!==undefined) out.type=safeEnum(body.type,['Incidente','Requisição','Problema','Mudança','Acesso'],'Incidente');
+  if(body.impact!==undefined) out.impact=safeEnum(body.impact,['Baixo','Médio','Alto','Crítico'],'Médio');
+  if(body.asset_code!==undefined || body.asset!==undefined) out.asset_code=safeText(body.asset_code||body.asset,50)||null;
+  if(body.requester_name!==undefined) out.requester_name=safeText(body.requester_name,120);
+  if(body.requester_email!==undefined) out.requester_email=safeText(body.requester_email,180);
+  if(body.responsible_name!==undefined) out.responsible_name=safeText(body.responsible_name,120);
+  if(mode==='create' && !out.title) throw Object.assign(new Error('Título obrigatório'),{status:400});
+  return out;
+}
+function sanitizeAssetPayload(body={}){
+  const tag=safeText(body.asset_tag||body.id,50), name=safeText(body.name||body.nome,160);
+  if(!tag||!name) throw Object.assign(new Error('Patrimônio e nome do ativo são obrigatórios'),{status:400});
+  return {asset_tag:tag,name,type:safeText(body.type||body.tipo,80)||'Ativo',owner_name:safeText(body.owner_name||body.usuario,120)||null,location:safeText(body.location||body.local,120)||null,status:safeEnum(body.status,['Em uso','Atenção','Crítico','Inativo'],'Em uso'),risk:safeEnum(body.risk||body.risco,['Baixo','Médio','Alto'],'Baixo'),warranty_until:safeText(body.warranty_until,20)||null,metadata: typeof body.metadata==='object' && body.metadata ? body.metadata : {}};
+}
+function sanitizeApprovalPayload(body={}){
+  return {title:safeText(body.title,180),requester_name:safeText(body.requester_name||body.requester,120)||null,status:safeEnum(body.status,['Pendente','Aprovado','Rejeitado'],'Pendente'),priority:safeEnum(body.priority,['Baixa','Média','Alta','Crítica'],'Média'),payload: typeof body.payload==='object' && body.payload ? body.payload : {type:safeText(body.type||'Solicitação TI',80), department:safeText(body.department,80), approver:safeText(body.approver,120), ticket:safeText(body.ticket,50), asset:safeText(body.asset,50), impact:safeText(body.impact,50), reason:safeText(body.reason,1000), risk:safeText(body.risk,1000), steps:Array.isArray(body.steps)?body.steps.map(x=>safeText(x,200)).slice(0,20):[]}};
+}
+async function findProfileByEmail(email){const rows=await dbSelect('profiles',`select=*&email=eq.${encodeURIComponent(email)}&active=eq.true&limit=1`); return rows[0]||null;}
+function hashPassword(password, salt=crypto.randomBytes(16).toString('hex'), iterations=210000){const hash=crypto.pbkdf2Sync(String(password),salt,iterations,32,'sha256').toString('hex'); return `pbkdf2$${iterations}$${salt}$${hash}`;}
+function verifyPassword(password, stored){if(!stored || !stored.startsWith('pbkdf2$')) return false; const [,iterS,salt,hash]=stored.split('$'); const got=crypto.pbkdf2Sync(String(password),salt,Number(iterS),32,'sha256').toString('hex'); const a=Buffer.from(got,'hex'), b=Buffer.from(hash,'hex'); return a.length===b.length && crypto.timingSafeEqual(a,b);}
+async function authenticate(email,password){
+  email=safeText(email,180).toLowerCase();
+  if(!email || !password) throw Object.assign(new Error('E-mail e senha obrigatórios'),{status:400});
+  if(!hasSupabase()) throw Object.assign(new Error('Supabase não configurado'),{status:503});
+  const profile=await findProfileByEmail(email);
+  if(!profile) throw Object.assign(new Error('Credenciais inválidas'),{status:401});
+  let ok=verifyPassword(password, profile.password_hash);
+  const bootstrapEmail=(process.env.ADMIN_BOOTSTRAP_EMAIL||'').toLowerCase();
+  const bootstrapPass=process.env.ADMIN_BOOTSTRAP_PASSWORD||'';
+  if(!ok && !profile.password_hash && bootstrapEmail && bootstrapPass && email===bootstrapEmail && password===bootstrapPass && normalizeRole(profile.role)==='ADM'){
+    const password_hash=hashPassword(password);
+    await supabaseRest(`profiles?id=eq.${encodeURIComponent(profile.id)}`,{method:'PATCH',body:JSON.stringify({password_hash,password_updated_at:new Date().toISOString(),updated_at:new Date().toISOString()})});
+    ok=true;
+  }
+  if(!ok) throw Object.assign(new Error('Credenciais inválidas'),{status:401});
+  return {id:profile.id,name:profile.name,email:profile.email,role:normalizeRole(profile.role),sector:profile.sector||'TI'};
+}
+function setCors(req,res){
+  const allowed=(process.env.ALLOWED_ORIGIN||'').split(',').map(x=>x.trim()).filter(Boolean);
+  const origin=req.headers.origin;
+  if(origin && allowed.includes(origin)){res.setHeader('Access-Control-Allow-Origin',origin); res.setHeader('Access-Control-Allow-Credentials','true');}
+  res.setHeader('Vary','Origin'); res.setHeader('Access-Control-Allow-Methods','GET,POST,PATCH,OPTIONS'); res.setHeader('Access-Control-Allow-Headers','Content-Type'); res.setHeader('X-Content-Type-Options','nosniff'); res.setHeader('Referrer-Policy','same-origin'); res.setHeader('Permissions-Policy','camera=(), microphone=(), geolocation=()');
+}
+function sendError(res,e){const status=e.status||500; return res.status(status).json({ok:false,error:status===500?'Erro interno':e.message});}
+
 const secureConfig = {
   departments:['TI','Compras','Manutenção','Qualidade','RH','Produção','Engenharia','Administração'],
   categories:['Suporte Técnico','Acesso / Senha','Rede / Internet','Impressoras','ERP / Sistemas','Hardware','Software','E-mail / Microsoft 365','Segurança da Informação','Solicitação','Manutenção TI','Bug / Sistema'],
   statusList:['Aberto','Em atendimento','Aguardando usuário','Resolvido','Fechado'],
-  users:[{name:'Administrador',email:'admin@tosi.com.br',role:'ADM',sector:'TI'}],
+  users:[],
   assetExtras:{},
   notificationSeed:[],
   automationBlockData:['Condição','E-mail','Microsoft Teams','WhatsApp','Delay','Criar chamado','Mover workflow','Atualizar SLA','Adicionar comentário','Criar aprovação','Gerar PDF','Webhook/API','Auditoria','CMDB'],
@@ -356,78 +452,57 @@ function publicConfig(){ return secureConfig; }
 function readShell(){
   const file = path.join(process.cwd(),'api','templates','shell.html');
   try { return fs.readFileSync(file,'utf8'); }
-  catch(e){ return '<div id="loginScreen" class="login-screen"><form id="loginForm" class="login-card"><h2>Tosi Support Pro</h2><label>E-mail</label><input id="loginEmail" type="email" value="admin@tosi.com.br"><label>Senha</label><input id="loginPassword" type="password" value="123456"><button class="primary">Entrar</button></form></div><div id="app" class="app hidden"><aside class="sidebar"><nav id="nav"></nav></aside><main class="main"><header class="topbar"><h2 id="pageTitle">Dashboard</h2><p id="pageSubtitle"></p></header><section id="dashboard" class="page active-page"></section></main></div>'; }
+  catch(e){ return '<div id="loginScreen" class="login-screen"><form id="loginForm" class="login-card"><h2>Tosi Support Pro</h2><label>E-mail</label><input id="loginEmail" type="email" autocomplete="username"><label>Senha</label><input id="loginPassword" type="password" autocomplete="current-password"><button class="primary">Entrar</button></form></div><div id="app" class="app hidden"><aside class="sidebar"><nav id="nav"></nav></aside><main class="main"><header class="topbar"><h2 id="pageTitle">Dashboard</h2><p id="pageSubtitle"></p></header><section id="dashboard" class="page active-page"></section></main></div>'; }
 }
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', process.env.ALLOWED_ORIGIN || '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  setCors(req,res);
   if (req.method === 'OPTIONS') return res.status(204).end();
-  const route = req.url || '/api';
-  if (route.includes('/health')) return res.status(200).json({ ok:true, service:'Tosi Support Pro API', version:'22-secure' });
-  if (route.includes('/shell')) { res.setHeader('Content-Type','text/html; charset=utf-8'); return res.status(200).send(readShell()); }
-  if (route.includes('/frontend-config')) return res.status(200).json({ok:true,...publicConfig()});
-  if (route.includes('/bootstrap')) {
-    try { return res.status(200).json({ok:true,...await getBootstrap()}); }
-    catch(e){ return res.status(500).json({ok:false,error:'Falha ao carregar bootstrap',details:e.message}); }
-  }
-  if (route.includes('/tickets')) {
-    try {
-      if(!hasSupabase()) return res.status(503).json({ok:false,error:'Supabase não configurado. Defina SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY.'});
-      if(req.method==='GET') return res.status(200).json({ok:true,tickets:await dbSelect('tickets','select=*&order=created_at.desc')});
-      if(req.method==='POST') return res.status(200).json({ok:true,ticket:await createTicket(await readJsonBody(req))});
-      if(req.method==='PATCH') { const body=await readJsonBody(req); return res.status(200).json({ok:true,ticket:await updateTicket(body.id||body.protocol,body)}); }
-      return res.status(405).json({ok:false,error:'Método não permitido'});
-    } catch(e){ return res.status(500).json({ok:false,error:'Falha nos chamados',details:e.message}); }
-  }
-  if (route.includes('/assets')) {
-    try {
-      if(!hasSupabase()) return res.status(503).json({ok:false,error:'Supabase não configurado. Defina SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY.'});
-      if(req.method==='GET') return res.status(200).json({ok:true,assets:await dbSelect('assets','select=*&order=created_at.desc')});
-      if(req.method==='POST') return res.status(200).json({ok:true,asset:await createAsset(await readJsonBody(req))});
-      return res.status(405).json({ok:false,error:'Método não permitido'});
-    } catch(e){ return res.status(500).json({ok:false,error:'Falha nos ativos',details:e.message}); }
-  }
+  const url=new URL(req.url||'/api', 'https://app.local');
+  const route=url.pathname.replace(/^\/api\/proxy\.js/,'') || url.pathname;
+  try{
+    if (route.includes('/health')) { requireMethod(req,['GET']); return res.status(200).json({ ok:true, service:'Tosi Support Pro API', version:'23-secure-auth' }); }
+    if (route.includes('/shell')) { requireMethod(req,['GET']); res.setHeader('Content-Type','text/html; charset=utf-8'); return res.status(200).send(readShell()); }
+    if (route.includes('/auth/login')) { requireMethod(req,['POST']); const body=await readJsonBody(req); const user=await authenticate(body.email,body.password); const token=signJwt(user); setSessionCookie(res,token); await createAudit('auth',user.id,'auth.login',{email:user.email}); return res.status(200).json({ok:true,user}); }
+    if (route.includes('/auth/logout')) { requireMethod(req,['POST']); const user=verifyJwt(parseCookies(req)[COOKIE_NAME]); if(user) await createAudit('auth',user.id,'auth.logout',{email:user.email}); clearSessionCookie(res); return res.status(200).json({ok:true}); }
+    if (route.includes('/auth/me')) { requireMethod(req,['GET']); const user=requireAuth(req); return res.status(200).json({ok:true,user}); }
 
-  if (route.includes('/approvals')) {
-    try {
+    if (route.includes('/frontend-config')) { requireMethod(req,['GET']); requireAuth(req); return res.status(200).json({ok:true,...publicConfig()}); }
+    if (route.includes('/bootstrap')) { requireMethod(req,['GET']); const user=requireAuth(req); return res.status(200).json({ok:true,user,...await getBootstrap()}); }
+
+    if (route.includes('/tickets')) {
       if(!hasSupabase()) return res.status(503).json({ok:false,error:'Supabase não configurado. Defina SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY.'});
-      if(req.method==='GET') return res.status(200).json({ok:true,approvals:await dbSelect('approvals','select=*&order=created_at.desc')});
-      if(req.method==='POST') return res.status(200).json({ok:true,approval:await createApproval(await readJsonBody(req))});
-      if(req.method==='PATCH') { const body=await readJsonBody(req); return res.status(200).json({ok:true,approval:await updateApproval(body.id,body)}); }
+      if(req.method==='GET') { requireAuth(req); return res.status(200).json({ok:true,tickets:await dbSelect('tickets','select=*&order=created_at.desc')}); }
+      if(req.method==='POST') { const user=requireAuth(req,['USUARIO']); const body=sanitizeTicketPayload(await readJsonBody(req),'create'); if(normalizeRole(user.role)==='USUARIO'){ body.requester_name=user.name; body.requester_email=user.email; } return res.status(200).json({ok:true,ticket:await createTicket(body,user)}); }
+      if(req.method==='PATCH') { requireAuth(req,['TECNICO']); const raw=await readJsonBody(req); const body=sanitizeTicketPayload(raw,'update'); return res.status(200).json({ok:true,ticket:await updateTicket(raw.id||raw.protocol,body)}); }
       return res.status(405).json({ok:false,error:'Método não permitido'});
-    } catch(e){ return res.status(500).json({ok:false,error:'Falha nas aprovações',details:e.message}); }
-  }
-  if (route.includes('/noc-snapshot')) {
-    try {
-      if (req.method === 'POST') {
-        const body=await readJsonBody(req);
-        const snapshot=buildNocSnapshotFromBody(body);
-        await saveNocSnapshot(snapshot);
-        return res.status(200).json({ok:true,snapshot,persisted:!!(process.env.SUPABASE_URL&&process.env.SUPABASE_SERVICE_ROLE_KEY)});
-      }
-      if (req.method === 'GET') {
-        const snapshot=await getNocSnapshot();
-        return res.status(200).json({ok:true,snapshot,persisted:!!(process.env.SUPABASE_URL&&process.env.SUPABASE_SERVICE_ROLE_KEY)});
-      }
+    }
+
+    if (route.includes('/assets')) {
+      if(!hasSupabase()) return res.status(503).json({ok:false,error:'Supabase não configurado. Defina SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY.'});
+      if(req.method==='GET') { requireAuth(req,['TECNICO']); return res.status(200).json({ok:true,assets:await dbSelect('assets','select=*&order=created_at.desc')}); }
+      if(req.method==='POST') { requireAuth(req,['TECNICO']); return res.status(200).json({ok:true,asset:await createAsset(sanitizeAssetPayload(await readJsonBody(req)))}); }
       return res.status(405).json({ok:false,error:'Método não permitido'});
-    } catch(e) {
-      return res.status(500).json({ok:false,error:'Falha no snapshot NOC',details:e.message});
     }
-  }
-  if (route.includes('/report-excel')) {
-    if (req.method !== 'POST') return res.status(405).json({ok:false,error:'Método não permitido'});
-    try {
-      const body=await readJsonBody(req);
-      const buffer=await buildExcelReport(body.tickets||[]);
-      res.setHeader('Content-Type','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-      res.setHeader('Content-Disposition',`attachment; filename="TosiSupportPro_Relatorio_Executivo_TI_${new Date().toISOString().slice(0,10)}.xlsx"`);
-      return res.status(200).send(Buffer.from(buffer));
-    } catch (e) {
-      console.error(e);
-      return res.status(500).json({ok:false,error:'Falha ao gerar Excel executivo',details:e.message});
+
+    if (route.includes('/approvals')) {
+      if(!hasSupabase()) return res.status(503).json({ok:false,error:'Supabase não configurado. Defina SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY.'});
+      if(req.method==='GET') { requireAuth(req,['GESTOR']); return res.status(200).json({ok:true,approvals:await dbSelect('approvals','select=*&order=created_at.desc')}); }
+      if(req.method==='POST') { requireAuth(req,['GESTOR']); return res.status(200).json({ok:true,approval:await createApproval(sanitizeApprovalPayload(await readJsonBody(req)))}); }
+      if(req.method==='PATCH') { requireAuth(req,['GESTOR']); const raw=await readJsonBody(req); const clean=sanitizeApprovalPayload(raw); return res.status(200).json({ok:true,approval:await updateApproval(raw.id,clean)}); }
+      return res.status(405).json({ok:false,error:'Método não permitido'});
     }
-  }
-  return res.status(200).json({ ok:true, name:'Tosi Support Pro API', version:'6.1.0', next:'Conectar Supabase Auth, Storage, JWT HttpOnly e relatórios persistentes.' });
+
+    if (route.includes('/noc-snapshot')) {
+      if (req.method === 'POST') { requireAuth(req,['TECNICO']); const body=await readJsonBody(req); const snapshot=buildNocSnapshotFromBody(body); await saveNocSnapshot(snapshot); return res.status(200).json({ok:true,snapshot,persisted:!!(process.env.SUPABASE_URL&&process.env.SUPABASE_SERVICE_ROLE_KEY)}); }
+      if (req.method === 'GET') { requireAuth(req,['TECNICO']); const snapshot=await getNocSnapshot(); return res.status(200).json({ok:true,snapshot,persisted:!!(process.env.SUPABASE_URL&&process.env.SUPABASE_SERVICE_ROLE_KEY)}); }
+      return res.status(405).json({ok:false,error:'Método não permitido'});
+    }
+
+    if (route.includes('/report-excel')) {
+      requireMethod(req,['POST']); requireAuth(req,['TECNICO']); const dbTickets=hasSupabase()?await dbSelect('tickets','select=*&order=created_at.desc'):[]; const buffer=await buildExcelReport(dbTickets); res.setHeader('Content-Type','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'); res.setHeader('Content-Disposition',`attachment; filename="TosiSupportPro_Relatorio_Executivo_TI_${new Date().toISOString().slice(0,10)}.xlsx"`); return res.status(200).send(Buffer.from(buffer));
+    }
+
+    return res.status(404).json({ ok:false, error:'Rota não encontrada' });
+  }catch(e){ return sendError(res,e); }
 }
