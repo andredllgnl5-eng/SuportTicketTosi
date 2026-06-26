@@ -179,6 +179,91 @@ async function supabaseRest(pathname, options={}){
   if(!res.ok) throw new Error(`Supabase ${res.status}: ${await res.text()}`);
   return res.status===204?null:await res.json();
 }
+
+function hasSupabase(){return !!(process.env.SUPABASE_URL && (process.env.SUPABASE_SERVICE_ROLE_KEY||process.env.SUPABASE_SERVICE_KEY));}
+async function dbSelect(table, query='select=*'){
+  const rows=await supabaseRest(`${table}?${query}`,{method:'GET'});
+  return Array.isArray(rows)?rows:[];
+}
+async function nextProtocol(){
+  const y=new Date().getFullYear();
+  const rows=await dbSelect('tickets',`select=protocol&protocol=like.CH-${y}-%&order=created_at.desc&limit=1`);
+  const last=rows[0]?.protocol || `CH-${y}-0000`;
+  const n=Number(String(last).split('-').pop()||0)+1;
+  return `CH-${y}-${String(n).padStart(4,'0')}`;
+}
+function slaDue(priority){
+  const h=priority==='Crítica'?1:priority==='Alta'?4:priority==='Média'?12:24;
+  const d=new Date(); d.setHours(d.getHours()+h); return d.toISOString();
+}
+async function createAudit(entity, entity_id, action, payload={}){
+  try{await supabaseRest('audit_logs',{method:'POST',body:JSON.stringify({entity,entity_id,action,payload})});}catch(e){}
+}
+async function getBootstrap(){
+  if(!hasSupabase()) return {connected:false, profiles:[], tickets:[], assets:[], approvals:[], automations:[]};
+  const [profiles,tickets,assets,approvals,automations]=await Promise.all([
+    dbSelect('profiles','select=*&order=created_at.desc'),
+    dbSelect('tickets','select=*&order=created_at.desc'),
+    dbSelect('assets','select=*&order=created_at.desc'),
+    dbSelect('approvals','select=*&order=created_at.desc'),
+    dbSelect('automations','select=*&order=created_at.desc')
+  ]);
+  return {connected:true, profiles,tickets,assets,approvals,automations};
+}
+async function createTicket(body){
+  const protocol=await nextProtocol();
+  const row={
+    protocol,
+    title:body.title,
+    description:body.description||'',
+    sector:body.sector||'TI',
+    category:body.category||'Suporte Técnico',
+    priority:body.priority||'Média',
+    status:body.status||'Aberto',
+    type:body.type||'Incidente',
+    impact:body.impact||'Médio',
+    asset_code:body.asset_code||body.asset||null,
+    requester_name:body.requester_name||'Não informado',
+    requester_email:body.requester_email||null,
+    responsible_name:body.responsible_name||'Service Desk',
+    sla_due_at:body.sla_due_at||slaDue(body.priority),
+    created_at:new Date().toISOString(),
+    updated_at:new Date().toISOString()
+  };
+  const inserted=await supabaseRest('tickets',{method:'POST',body:JSON.stringify(row)});
+  const ticket=Array.isArray(inserted)?inserted[0]:inserted;
+  await createAudit('ticket', ticket?.id || protocol, 'ticket.created', row);
+  const attachments=Array.isArray(body.attachments)?body.attachments:[];
+  if(ticket?.id && attachments.length){
+    await supabaseRest('ticket_attachments',{method:'POST',body:JSON.stringify(attachments.map(a=>({ticket_id:ticket.id,file_name:a.file_name||a.name||'arquivo',file_path:a.file_path||'',mime_type:a.mime_type||'',size_bytes:a.size_bytes||0})))})
+  }
+  return ticket;
+}
+async function updateTicket(protocolOrId, body){
+  const patch={...body, updated_at:new Date().toISOString()};
+  delete patch.id; delete patch.protocol;
+  const key=String(protocolOrId).startsWith('CH-')?`protocol=eq.${encodeURIComponent(protocolOrId)}`:`id=eq.${encodeURIComponent(protocolOrId)}`;
+  const rows=await supabaseRest(`tickets?${key}`,{method:'PATCH',body:JSON.stringify(patch)});
+  await createAudit('ticket', protocolOrId, 'ticket.updated', patch);
+  return Array.isArray(rows)?rows[0]:rows;
+}
+async function createAsset(body){
+  const row={
+    asset_tag:body.asset_tag||body.id,
+    name:body.name||body.nome,
+    type:body.type||body.tipo||'Ativo',
+    owner_name:body.owner_name||body.usuario||null,
+    location:body.location||body.local||null,
+    status:body.status||'Em uso',
+    risk:body.risk||body.risco||'Baixo',
+    warranty_until:body.warranty_until||null,
+    metadata:body.metadata||{}
+  };
+  const inserted=await supabaseRest('assets',{method:'POST',body:JSON.stringify(row)});
+  await createAudit('asset', row.asset_tag, 'asset.created', row);
+  return Array.isArray(inserted)?inserted[0]:inserted;
+}
+
 async function saveNocSnapshot(snapshot){
   try{
     const row={id:'default',snapshot,updated_at:new Date().toISOString()};
@@ -204,6 +289,27 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(204).end();
   const route = req.url || '/api';
   if (route.includes('/health')) return res.status(200).json({ ok:true, service:'Tosi Support Pro API', version:'6.1.0' });
+  if (route.includes('/bootstrap')) {
+    try { return res.status(200).json({ok:true,...await getBootstrap()}); }
+    catch(e){ return res.status(500).json({ok:false,error:'Falha ao carregar bootstrap',details:e.message}); }
+  }
+  if (route.includes('/tickets')) {
+    try {
+      if(!hasSupabase()) return res.status(503).json({ok:false,error:'Supabase não configurado. Defina SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY.'});
+      if(req.method==='GET') return res.status(200).json({ok:true,tickets:await dbSelect('tickets','select=*&order=created_at.desc')});
+      if(req.method==='POST') return res.status(200).json({ok:true,ticket:await createTicket(await readJsonBody(req))});
+      if(req.method==='PATCH') { const body=await readJsonBody(req); return res.status(200).json({ok:true,ticket:await updateTicket(body.id||body.protocol,body)}); }
+      return res.status(405).json({ok:false,error:'Método não permitido'});
+    } catch(e){ return res.status(500).json({ok:false,error:'Falha nos chamados',details:e.message}); }
+  }
+  if (route.includes('/assets')) {
+    try {
+      if(!hasSupabase()) return res.status(503).json({ok:false,error:'Supabase não configurado. Defina SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY.'});
+      if(req.method==='GET') return res.status(200).json({ok:true,assets:await dbSelect('assets','select=*&order=created_at.desc')});
+      if(req.method==='POST') return res.status(200).json({ok:true,asset:await createAsset(await readJsonBody(req))});
+      return res.status(405).json({ok:false,error:'Método não permitido'});
+    } catch(e){ return res.status(500).json({ok:false,error:'Falha nos ativos',details:e.message}); }
+  }
   if (route.includes('/noc-snapshot')) {
     try {
       if (req.method === 'POST') {

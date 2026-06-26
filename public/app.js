@@ -4,12 +4,7 @@ const departments=['TI','Compras','Manutenção','Qualidade','RH','Produção','
 const categories=['Suporte Técnico','Acesso / Senha','Rede / Internet','Impressoras','ERP / Sistemas','Hardware','Software','E-mail / Microsoft 365','Segurança da Informação','Solicitação','Manutenção TI','Bug / Sistema'];
 const statusList=['Aberto','Em atendimento','Aguardando usuário','Resolvido','Fechado'];
 const users=[{name:'Administrador',email:'admin@tosi.com.br',role:'ADM',sector:'TI'},{name:'Carlos Oliveira',email:'carlos@tosi.com.br',role:'Atendente N2',sector:'TI'},{name:'Ana Paula',email:'ana@tosi.com.br',role:'Gestora',sector:'TI'},{name:'João da Silva',email:'joao@tosi.com.br',role:'Usuário',sector:'PCP'}];
-const assets=[
-{id:'AT-0001',nome:'Notebook Dell Latitude 5420',tipo:'Notebook',usuario:'João da Silva',local:'PCP',status:'Em uso',risco:'Baixo',garantia:'12/2026'},
-{id:'AT-0002',nome:'Impressora HP LaserJet M428',tipo:'Impressora',usuario:'Setor PCP',local:'PCP',status:'Atenção',risco:'Médio',garantia:'08/2026'},
-{id:'AT-0003',nome:'Servidor Aplicações Internas',tipo:'Servidor',usuario:'TI',local:'Sala TI',status:'Crítico',risco:'Alto',garantia:'05/2027'},
-{id:'AT-0004',nome:'Access Point Escritório',tipo:'Rede',usuario:'Todos',local:'Administrativo',status:'Em uso',risco:'Baixo',garantia:'10/2026'},
-{id:'AT-0005',nome:'Desktop Financeiro 02',tipo:'Desktop',usuario:'Fernanda Lima',local:'Financeiro',status:'Em uso',risco:'Baixo',garantia:'01/2027'}];
+let assets=[];
 
 const assetExtras={
  'AT-0001':{brand:'Dell',model:'Latitude 5420',serial:'DL5420-PCP-001',os:'Windows 11 Pro',cpu:'Intel Core i7',ram:'16 GB',disk:'512 GB SSD',ip:'192.168.10.41',mac:'A4:5E:60:10:21:01',vendor:'Dell Brasil',nf:'NF-18452',purchase:'14/01/2024',value:6200,availability:'99,5%',lastMaint:'18 dias atrás',photo:'💻',software:['Windows 11 Pro','Microsoft 365','Chrome','AnyDesk','Antivírus','ERP Client'],licenses:['Windows OEM','Microsoft 365 Business','Antivírus Endpoint'],docs:['Nota fiscal','Termo de responsabilidade','Garantia Dell','Manual do usuário']},
@@ -47,27 +42,102 @@ const serviceDetails={
  'mudanca-ti':{impact:'Planejado',approval:'Exige aprovação do gestor de TI',route:'Solicitante → Gestão TI → Execução → Homologação',fields:['Objetivo da mudança','Janela desejada','Risco','Plano de rollback'],steps:['Registrar mudança','Analisar risco e impacto','Aprovar janela','Executar alteração','Homologar e encerrar'],faq:['Mudanças devem ter janela e plano de retorno.','Impactos em produção precisam de aprovação.'],template:'Solicito mudança de TI. Objetivo: _____. Janela: _____. Risco: _____. Rollback: _____.'}
 };
 function nowMinus(h){return new Date(Date.now()-h*3600*1000).toISOString()}function plus(h){return new Date(Date.now()+h*3600*1000).toISOString()}
-let tickets=JSON.parse(localStorage.getItem(KEY)||'null')||[
-{id:'CH-2026-0256',title:'Impressora não está imprimindo',requester:'João da Silva',sector:'TI',category:'Impressoras',priority:'Alta',status:'Em atendimento',type:'Incidente',asset:'AT-0002',impact:'Alto',createdAt:nowMinus(2),updatedAt:nowMinus(1),slaDueAt:plus(4),responsible:'Carlos Oliveira',attachments:['print-erro.png'],description:'Fila de impressão travada no setor PCP. Usuários sem conseguir imprimir OPs.',history:['Chamado aberto pelo usuário','Atendimento iniciado por Carlos Oliveira']},
-{id:'CH-2026-0255',title:'Solicitação de compra de material de TI',requester:'Maria Santos',sector:'Compras',category:'Solicitação',priority:'Média',status:'Aberto',type:'Requisição',asset:'',impact:'Médio',createdAt:nowMinus(4),updatedAt:nowMinus(3),slaDueAt:plus(18),responsible:'Service Desk',attachments:[],description:'Solicitação de mouse, teclado e cabo HDMI para sala de reunião.',history:['Chamado aberto']},
-{id:'CH-2026-0254',title:'Certidão de fornecedor vencendo no portal',requester:'Carlos Oliveira',sector:'Qualidade',category:'ERP / Sistemas',priority:'Baixa',status:'Aguardando usuário',type:'Requisição',asset:'',impact:'Baixo',createdAt:nowMinus(26),updatedAt:nowMinus(25),slaDueAt:plus(30),responsible:'Ana Paula',attachments:['certidao.pdf'],description:'Sistema de fornecedores está alertando certidão próxima do vencimento.',history:['Chamado aberto','Solicitada confirmação do fornecedor']},
-{id:'CH-2026-0253',title:'Acesso ao sistema ERP bloqueado',requester:'Ana Paula',sector:'TI',category:'Acesso / Senha',priority:'Alta',status:'Aberto',type:'Acesso',asset:'',impact:'Alto',createdAt:nowMinus(26),updatedAt:nowMinus(25),slaDueAt:plus(1),responsible:'Service Desk',attachments:[],description:'Usuária não consegue acessar o ERP após tentativas de login.',history:['Chamado aberto']},
-{id:'CH-2026-0252',title:'Manutenção de ar condicionado da sala TI',requester:'José Roberto',sector:'Manutenção',category:'Manutenção TI',priority:'Média',status:'Em atendimento',type:'Incidente',asset:'AT-0003',impact:'Médio',createdAt:nowMinus(34),updatedAt:nowMinus(25),slaDueAt:plus(8),responsible:'Carlos Oliveira',attachments:[],description:'Temperatura da sala TI acima do normal. Risco para servidor.',history:['Chamado aberto','Acionado manutenção']},
-{id:'CH-2026-0251',title:'Solicitação de EPI para técnico externo',requester:'Fernanda Lima',sector:'RH',category:'Solicitação',priority:'Baixa',status:'Fechado',type:'Requisição',asset:'',impact:'Baixo',createdAt:nowMinus(55),updatedAt:nowMinus(50),slaDueAt:nowMinus(45),closedAt:nowMinus(50),responsible:'Service Desk',attachments:[],description:'Solicitação encerrada.',history:['Chamado aberto','Finalizado']},
-{id:'CH-2026-0250',title:'Falha no login do portal interno',requester:'Paulo Henrique',sector:'TI',category:'Bug / Sistema',priority:'Alta',status:'Em atendimento',type:'Problema',asset:'',impact:'Crítico',createdAt:nowMinus(80),updatedAt:nowMinus(78),slaDueAt:nowMinus(10),responsible:'Ana Paula',attachments:['erro-login.png'],description:'Usuários relatam erro intermitente no portal interno.',history:['Chamado aberto','Escalado para sistemas']}
-];
+let tickets=[];
+let appUser=null;
+let backendReady=false;
 const navItems=[['dashboard','⌂','Dashboard'],['tickets','▣','Chamados'],['newTicket','＋','Novo Chamado'],['clientPortal','◉','Portal do Usuário'],['kanban','▦','Kanban'],['workflow','⟲','Workflow'],['automations','⚡','Automações'],['approvals','✓','Aprovações'],['serviceCatalog','◈','Catálogo de Serviços'],['assets','▥','Ativos TI / CMDB'],['knowledge','▤','Base de Conhecimento'],['reports','▧','Relatórios'],['bi','📊','Business Intelligence'],['noc','🖥','Central NOC'],['settings','⚙','Configurações']];
 function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
 function saveAll(){
   localStorage.setItem(KEY,JSON.stringify(tickets));
   publishNocSnapshot(false);
 }
+
+async function api(path, options={}){
+  const res=await fetch('/api'+path,{...options,headers:{'Content-Type':'application/json',...(options.headers||{})}});
+  const type=res.headers.get('content-type')||'';
+  const data=type.includes('application/json')?await res.json():await res.text();
+  if(!res.ok || (data && data.ok===false)) throw new Error((data&&data.error)||'Falha na API');
+  return data;
+}
+function normalizeTicket(row){
+  return {
+    id: row.protocol || row.id,
+    uuid: row.id,
+    title: row.title || '',
+    requester: row.requester_name || row.requester?.name || row.requester || 'Não informado',
+    requesterEmail: row.requester_email || '',
+    sector: row.sector || '',
+    category: row.category || '',
+    priority: row.priority || 'Média',
+    status: row.status || 'Aberto',
+    type: row.type || 'Incidente',
+    asset: row.asset_code || row.asset || '',
+    impact: row.impact || 'Médio',
+    createdAt: row.created_at || row.createdAt || new Date().toISOString(),
+    updatedAt: row.updated_at || row.updatedAt || row.created_at || new Date().toISOString(),
+    slaDueAt: row.sla_due_at || row.slaDueAt || row.created_at || new Date().toISOString(),
+    closedAt: row.closed_at || row.closedAt || null,
+    responsible: row.responsible_name || row.responsible?.name || row.responsible || 'Service Desk',
+    attachments: row.attachments || [],
+    description: row.description || '',
+    history: row.history || []
+  }
+}
+function normalizeAsset(row){
+  return {
+    id: row.asset_tag || row.id,
+    uuid: row.id,
+    nome: row.name || row.nome || '',
+    tipo: row.type || row.tipo || 'Ativo',
+    usuario: row.owner_name || row.usuario || 'Não atribuído',
+    local: row.location || row.local || '',
+    status: row.status || 'Em uso',
+    risco: row.risk || row.risco || 'Baixo',
+    garantia: row.warranty_until ? new Date(row.warranty_until).toLocaleDateString('pt-BR',{month:'2-digit',year:'numeric'}) : (row.garantia || '-')
+  }
+}
+async function loadFromBackend(){
+  try{
+    const data=await api('/bootstrap');
+    tickets=(data.tickets||[]).map(normalizeTicket);
+    assets=(data.assets||[]).map(normalizeAsset);
+    if(data.user) appUser=data.user;
+    backendReady=!!data.connected;
+    if(!backendReady) showSystemNotice('Supabase ainda não configurado. Dados demo foram removidos; configure as variáveis para carregar dados reais.');
+  }catch(e){
+    tickets=[]; assets=[]; backendReady=false;
+    showSystemNotice('Não foi possível conectar ao back-end/Supabase: '+e.message);
+  }
+}
+function showSystemNotice(msg){
+  const old=document.querySelector('.system-db-notice'); if(old) old.remove();
+  const el=document.createElement('div'); el.className='system-db-notice'; el.innerHTML='<b>Banco real</b><span>'+esc(msg)+'</span>';
+  const main=document.querySelector('.main'); if(main) main.prepend(el);
+}
+async function refreshData(){await loadFromBackend(); renderAll();}
+
 function money(v){return Number(v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}
 function fmtDate(v){return new Date(v).toLocaleDateString('pt-BR')}function fmt(v){return new Date(v).toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'})}
 function isClosed(t){return ['Resolvido','Fechado'].includes(t.status)}function isLate(t){return !isClosed(t)&&new Date(t.slaDueAt)<new Date()}
 function slaPercent(t){if(isClosed(t))return 100;const start=new Date(t.createdAt),due=new Date(t.slaDueAt),now=new Date();const total=due-start;if(total<=0)return 100;return Math.max(0,Math.min(100,Math.round((now-start)/total*100)))}
-function init(){nav.innerHTML=navItems.map(([id,ic,label])=>`<button class="nav-btn" data-page="${id}"><span>${ic}</span>${label}</button>`).join('');document.querySelectorAll('.nav-btn').forEach(b=>b.onclick=()=>showPage(b.dataset.page));loginForm.onsubmit=e=>{e.preventDefault();loginScreen.classList.add('hidden');app.classList.remove('hidden');renderAll();};logoutBtn.onclick=()=>{app.classList.add('hidden');loginScreen.classList.remove('hidden')};themeBtn.onclick=()=>document.body.classList.toggle('dark');exportBtn.onclick=openReportCenter;printReportBtn.onclick=generateReportWindow;reportBtn.onclick=renderReports;ticketForm.onsubmit=createTicket;globalSearch.oninput=()=>{if(document.querySelector('#tickets.active-page'))renderTicketsTable()};['filterSector','filterCategory','filterPriority','filterStatus','filterSla'].forEach(id=>$(id).onchange=renderTicketsTable);fillOptions();showPage('dashboard');renderAll();}
-function fillOptions(){filterSector.innerHTML='<option value="">Todos</option>'+departments.map(d=>`<option>${d}</option>`).join('');filterCategory.innerHTML='<option value="">Todas</option>'+categories.map(c=>`<option>${c}</option>`).join('');filterStatus.innerHTML='<option value="">Todos</option>'+statusList.map(s=>`<option>${s}</option>`).join('');ticketSector.innerHTML=departments.map(d=>`<option>${d}</option>`).join('');ticketCategory.innerHTML=categories.map(c=>`<option>${c}</option>`).join('');ticketAsset.innerHTML='<option value="">Nenhum</option>'+assets.map(a=>`<option value="${a.id}">${a.id} - ${a.nome}</option>`).join('');}
+function init(){
+  nav.innerHTML=navItems.map(([id,ic,label])=>`<button class="nav-btn" data-page="${id}"><span>${ic}</span>${label}</button>`).join('');
+  document.querySelectorAll('.nav-btn').forEach(b=>b.onclick=()=>showPage(b.dataset.page));
+  loginForm.onsubmit=async e=>{
+    e.preventDefault();
+    loginScreen.classList.add('hidden'); app.classList.remove('hidden');
+    showPage('dashboard');
+    await loadFromBackend();
+    renderAll();
+  };
+  logoutBtn.onclick=()=>{app.classList.add('hidden');loginScreen.classList.remove('hidden')};
+  themeBtn.onclick=()=>document.body.classList.toggle('dark');
+  exportBtn.onclick=openReportCenter; printReportBtn.onclick=generateReportWindow; reportBtn.onclick=renderReports;
+  ticketForm.onsubmit=createTicket;
+  globalSearch.oninput=()=>{if(document.querySelector('#tickets.active-page'))renderTicketsTable()};
+  ['filterSector','filterCategory','filterPriority','filterStatus','filterSla'].forEach(id=>$(id).onchange=renderTicketsTable);
+  fillOptions(); showPage('dashboard'); renderAll();
+}
 function showPage(id){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active-page'));$(id).classList.add('active-page');document.querySelectorAll('.nav-btn').forEach(b=>b.classList.toggle('active',b.dataset.page===id));const titles={dashboard:'Dashboard Executivo',tickets:'Chamados',ticketDetail:'Chamado 360°',newTicket:'Novo Chamado',kanban:'Kanban',serviceCatalog:'Catálogo de Serviços',assets:'CMDB Enterprise',knowledge:'Base de Conhecimento',reports:'Relatórios',settings:'Configurações',assetDetail:'Ativo 360°',workflow:'Workflow Enterprise',automations:'Automações Enterprise',clientPortal:'Portal do Usuário Premium',serviceDetail:'Serviço 360°',approvals:'Aprovações Enterprise',bi:'Business Intelligence',noc:'Central NOC Enterprise'};pageTitle.textContent=titles[id]||'Tosi Support Pro';pageSubtitle.textContent=titles[id]||'';renderAll();}
 function filteredTickets(){const q=globalSearch.value?.toLowerCase().trim()||'';return tickets.filter(t=>(!q||[t.id,t.title,t.requester,t.sector,t.category,t.status,t.asset].join(' ').toLowerCase().includes(q))&&(!filterSector.value||t.sector===filterSector.value)&&(!filterCategory.value||t.category===filterCategory.value)&&(!filterPriority.value||t.priority===filterPriority.value)&&(!filterStatus.value||t.status===filterStatus.value)&&(!filterSla.value||(filterSla.value==='late'?isLate(t):!isLate(t))))}
 function counts(data=tickets){return{total:data.length,open:data.filter(t=>t.status==='Aberto').length,work:data.filter(t=>t.status==='Em atendimento').length,wait:data.filter(t=>t.status==='Aguardando usuário').length,done:data.filter(isClosed).length,late:data.filter(isLate).length}}
@@ -629,167 +699,33 @@ startNocLiveLoop();
 
 function renderReports(){if(!reportOps)return;const total=tickets.length,closed=tickets.filter(isClosed).length,late=tickets.filter(isLate).length;reportOps.innerHTML=`<div class="report-metric"><span>Total de chamados</span><strong>${total}</strong></div><div class="report-metric"><span>Resolvidos/fechados</span><strong>${closed}</strong></div><div class="report-metric"><span>Taxa de conclusão</span><strong>${total?Math.round(closed/total*100):0}%</strong></div><div class="report-metric"><span>Backlog operacional</span><strong>${total-closed}</strong></div>`;reportSla.innerHTML=`<div class="report-metric"><span>SLA vencido</span><strong>${late}</strong></div><div class="report-metric"><span>Críticos em aberto</span><strong>${tickets.filter(t=>(t.priority==='Crítica'||t.priority==='Alta')&&!isClosed(t)).length}</strong></div><div class="report-metric"><span>Dentro do prazo</span><strong>${total-late}</strong></div>`;if(reportTable)reportTable.innerHTML=`<div class="table-wrap"><table class="table"><thead><tr><th>Indicador</th><th>Valor</th><th>Comentário executivo</th></tr></thead><tbody><tr><td>MTTR médio</td><td>3h20m</td><td>Tempo médio competitivo para suporte interno.</td></tr><tr><td>Chamados críticos</td><td>${tickets.filter(t=>t.priority==='Crítica'||t.priority==='Alta').length}</td><td>Requer acompanhamento do gestor de TI.</td></tr><tr><td>Ativos impactados</td><td>${new Set(tickets.map(t=>t.asset).filter(Boolean)).size}</td><td>Vínculo com CMDB agrega rastreabilidade.</td></tr></tbody></table></div>`}
 function renderSettings(){if(!departmentsList)return;departmentsList.innerHTML=departments.map(d=>`<span class="chip">${esc(d)}</span>`).join('');usersList.innerHTML=users.map(u=>`<div class="ticket-item"><div><strong>${esc(u.name)}</strong><br><small>${esc(u.email)} • ${esc(u.sector)}</small></div><span class="badge">${esc(u.role)}</span></div>`).join('')}
-function createTicket(e){e.preventDefault();const n=260+tickets.length;const id=`CH-2026-${String(n).padStart(4,'0')}`;const priority=ticketPriority.value;const slaHours=priority==='Crítica'?1:priority==='Alta'?4:priority==='Média'?12:24;const files=[...ticketFiles.files].map(f=>f.name);tickets.unshift({id,title:ticketTitle.value,requester:ticketRequester.value,sector:ticketSector.value,category:ticketCategory.value,priority,status:'Aberto',type:ticketType.value,asset:ticketAsset.value,impact:ticketImpact.value,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),slaDueAt:plus(slaHours),responsible:'Service Desk',attachments:files,description:ticketDescription.value+'\nLocal: '+ticketLocation.value,history:['Chamado aberto via catálogo de TI']});saveAll();ticketForm.reset();ticketRequester.value='Administrador';showPage('tickets');}
-
-function timeLeftText(t){
-  if(isClosed(t)) return 'Encerrado';
-  const diff=new Date(t.slaDueAt)-new Date();
-  const neg=diff<0, abs=Math.abs(diff);
-  const h=Math.floor(abs/3600000), m=Math.floor((abs%3600000)/60000);
-  return neg?`Vencido há ${h}h ${m}m`:`${h}h ${m}m restantes`;
+async function createTicket(e){
+  e.preventDefault();
+  const priority=ticketPriority.value;
+  const payload={
+    title:ticketTitle.value,
+    requester_name:ticketRequester.value || (appUser?.name || 'Administrador'),
+    sector:ticketSector.value,
+    category:ticketCategory.value,
+    priority,
+    status:'Aberto',
+    type:ticketType.value,
+    asset_code:ticketAsset.value,
+    impact:ticketImpact.value,
+    location:ticketLocation.value,
+    description:ticketDescription.value,
+    attachments:[...ticketFiles.files].map(f=>({file_name:f.name,size_bytes:f.size,mime_type:f.type}))
+  };
+  const btn=ticketForm.querySelector('button[type="submit"], .primary'); const old=btn?btn.innerHTML:'';
+  try{
+    if(btn){btn.disabled=true;btn.innerHTML='Salvando no Supabase...'}
+    await api('/tickets',{method:'POST',body:JSON.stringify(payload)});
+    ticketForm.reset(); ticketRequester.value=appUser?.name || 'Administrador';
+    await refreshData(); showPage('tickets');
+  }catch(err){
+    alert('Não foi possível salvar no banco: '+err.message+'\n\nConfira SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY na Vercel.');
+  }finally{if(btn){btn.disabled=false;btn.innerHTML=old}}
 }
-function assetInfo(id){return assets.find(a=>a.id===id)}
-function ticketAge(t){
-  const diff=Date.now()-new Date(t.createdAt).getTime();
-  const h=Math.floor(diff/3600000), m=Math.floor((diff%3600000)/60000);
-  return h?`${h}h ${m}m`:`${m}m`;
-}
-function timelineHtml(t){
-  const base=[`Chamado criado por ${t.requester}`,`SLA iniciado automaticamente`,...(t.history||[])];
-  return base.map((h,i)=>`<div class="timeline-row ${i===base.length-1?'last':''}"><div class="timeline-dot"></div><div><strong>${esc(i===0?'Abertura':i===1?'SLA':'Evento')}</strong><p>${esc(h)}</p><small>${i<2?fmt(t.createdAt):fmt(t.updatedAt)}</small></div></div>`).join('')
-}
-function attachmentHtml(t){
-  if(!t.attachments || !t.attachments.length) return '<div class="empty-attach">Nenhum anexo enviado neste chamado.</div>';
-  return t.attachments.map(a=>`<div class="attach-card"><span>📎</span><div><strong>${esc(a)}</strong><small>Arquivo vinculado ao chamado</small></div><button class="action-btn">Visualizar</button></div>`).join('')
-}
-function printTicket(id){
-  const t=tickets.find(x=>x.id===id); if(!t) return;
-  const a=assetInfo(t.asset);
-  const w=window.open('','_blank');
-  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(t.id)} - Relatório</title><style>
-  body{font-family:Arial,Helvetica,sans-serif;margin:34px;color:#061b3a}header{display:flex;justify-content:space-between;align-items:center;border-bottom:6px solid #004B8D;padding-bottom:18px;margin-bottom:24px}img{width:220px}.meta{text-align:right}h1{color:#004B8D;margin:0}.box{border:1px solid #dbe7f5;border-radius:14px;padding:16px;margin:14px 0;background:#fbfdff}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.item small{display:block;color:#64748b;text-transform:uppercase;font-weight:bold}.item strong{font-size:16px}.badge{display:inline-block;border-radius:999px;padding:7px 12px;background:#e8f2ff;color:#004B8D;font-weight:bold}.red{background:#ffe8e6;color:#d91b2b}.green{background:#e9faef;color:#008c4b}table{width:100%;border-collapse:collapse;margin-top:12px}td,th{border:1px solid #dbe7f5;padding:10px;text-align:left}th{background:#004B8D;color:white}footer{margin-top:24px;color:#667085;font-size:12px}</style></head><body>
-  <header><img src="./logo-tosi.png"><div class="meta"><h1>Relatório do Chamado</h1><p><strong>${esc(t.id)}</strong></p><p>Gerado em ${fmt(new Date())}</p></div></header>
-  <section class="box"><h2>${esc(t.title)}</h2><p>${esc(t.description)}</p><span class="badge ${isLate(t)?'red':'green'}">SLA: ${timeLeftText(t)}</span></section>
-  <section class="box"><h3>Dados principais</h3><div class="grid">
-  <div class="item"><small>Status</small><strong>${esc(t.status)}</strong></div><div class="item"><small>Prioridade</small><strong>${esc(t.priority)}</strong></div><div class="item"><small>Tipo ITSM</small><strong>${esc(t.type)}</strong></div>
-  <div class="item"><small>Solicitante</small><strong>${esc(t.requester)}</strong></div><div class="item"><small>Setor</small><strong>${esc(t.sector)}</strong></div><div class="item"><small>Responsável</small><strong>${esc(t.responsible)}</strong></div>
-  <div class="item"><small>Categoria</small><strong>${esc(t.category)}</strong></div><div class="item"><small>Ativo</small><strong>${esc(t.asset||'Não vinculado')}</strong></div><div class="item"><small>Criado em</small><strong>${fmt(t.createdAt)}</strong></div>
-  </div></section>
-  <section class="box"><h3>Ativo / CMDB</h3><p>${a?`${esc(a.nome)} • ${esc(a.tipo)} • ${esc(a.local)} • Garantia ${esc(a.garantia)}`:'Nenhum ativo relacionado.'}</p></section>
-  <section class="box"><h3>Histórico / Auditoria</h3><table><thead><tr><th>Evento</th></tr></thead><tbody>${(t.history||[]).map(h=>`<tr><td>${esc(h)}</td></tr>`).join('')}</tbody></table></section>
-  <footer>Documento gerado automaticamente pelo Tosi Support Pro v6. Uso interno Indústrias Tosi.</footer><script>window.print()<\/script></body></html>`);
-  w.document.close();
-}
-window.printTicket=printTicket;
-window.openTicket=id=>{
-  const t=tickets.find(x=>x.id===id);if(!t)return;
-  const a=assetInfo(t.asset);
-  const pct=slaPercent(t), late=isLate(t);
-  const userTickets=tickets.filter(x=>x.requester===t.requester && x.id!==t.id).slice(0,4);
-  const assetTickets=t.asset?tickets.filter(x=>x.asset===t.asset && x.id!==t.id).slice(0,4):[];
-  const cost = ticketCost(t);
-  ticketDetailContent.innerHTML=`
-  <div class="ticket-360 ticket-360-page">
-    <div class="t360-command">
-      <button class="back-btn" onclick="showPage('tickets')">← Voltar aos chamados</button>
-      <div class="t360-title">
-        <div class="ticket-kicker"><span>${esc(t.id)}</span><span>${esc(t.type)}</span><span class="badge ${esc(t.priority)}">${esc(t.priority)}</span><span class="badge status">${esc(t.status)}</span></div>
-        <h2>${esc(t.title)}</h2>
-        <p>${esc(t.description)}</p>
-      </div>
-      <div class="t360-sla ${late?'late':''}">
-        <small>${late?'SLA vencido':'SLA restante'}</small>
-        <strong>${timeLeftText(t)}</strong>
-        <div class="bar"><i style="width:${pct}%;background:${late?'#f04438':pct>75?'#f79009':'#12b76a'}"></i></div>
-        <em>${pct}% consumido</em>
-      </div>
-    </div>
-
-    <div class="t360-progress">
-      <div class="step done"><span>1</span><strong>Novo</strong><small>Entrada</small></div>
-      <i></i>
-      <div class="step ${['Em atendimento','Aguardando usuário','Resolvido','Fechado'].includes(t.status)?'done':'active'}"><span>2</span><strong>Triagem</strong><small>Classificação</small></div>
-      <i></i>
-      <div class="step ${['Em atendimento','Aguardando usuário'].includes(t.status)?'active':isClosed(t)?'done':''}"><span>3</span><strong>Atendimento</strong><small>Suporte técnico</small></div>
-      <i></i>
-      <div class="step ${t.status==='Aguardando usuário'?'active':isClosed(t)?'done':''}"><span>4</span><strong>Validação</strong><small>Usuário</small></div>
-      <i></i>
-      <div class="step ${isClosed(t)?'done active':''}"><span>5</span><strong>Encerramento</strong><small>Resolvido</small></div>
-    </div>
-
-    <div class="t360-mini-kpis">
-      <div><small>Tempo aberto</small><strong>${ticketAge(t)}</strong></div>
-      <div><small>SLA consumido</small><strong>${pct}%</strong></div>
-      <div><small>Responsável</small><strong>${esc(t.responsible||'Service Desk')}</strong></div>
-      <div><small>Anexos</small><strong>${(t.attachments||[]).length}</strong></div>
-      <div><small>Interações</small><strong>${(t.history||[]).length+2}</strong></div>
-    </div>
-
-    <div class="t360-actions enterprise-actions">
-      <button class="primary" onclick="updateTicket('${esc(t.id)}')">Salvar resposta</button>
-      <button class="ghost" onclick="quickStatus('${esc(t.id)}','Em atendimento')">Assumir</button>
-      <button class="ghost" onclick="quickStatus('${esc(t.id)}','Aguardando usuário')">Aguardar usuário</button>
-      <button class="ghost" onclick="quickStatus('${esc(t.id)}','Resolvido')">Resolver</button>
-      <button class="ghost" onclick="printTicket('${esc(t.id)}')">Gerar PDF</button>
-    </div>
-
-    <div class="t360-grid">
-      <section class="t360-main">
-        <div class="t360-tabs">
-          <button class="active" onclick="switchDetailTab('timeline',this)">Timeline</button>
-          <button onclick="switchDetailTab('conversation',this)">Conversa</button>
-          <button onclick="switchDetailTab('asset',this)">Ativo / CMDB</button>
-          <button onclick="switchDetailTab('costs',this)">Custos</button>
-          <button onclick="switchDetailTab('history',this)">Histórico</button>
-          <button onclick="switchDetailTab('audit',this)">Auditoria</button>
-        </div>
-
-        <div class="t360-pane active" data-tab="timeline">
-          <div class="detail-card t360-card"><h3>Timeline completa do atendimento</h3><div class="timeline premium-timeline">${timelineHtml(t)}</div></div>
-          <div class="detail-card t360-card"><h3>Próximas ações recomendadas</h3><div class="next-actions"><span>Validar evidência</span><span>Atualizar solicitante</span><span>Revisar SLA</span><span>Registrar solução</span></div></div>
-        </div>
-
-        <div class="t360-pane" data-tab="conversation">
-          <div class="detail-card t360-card"><h3>Conversa com o usuário</h3>${conversationHtml(t)}<textarea id="modalComment" placeholder="Digite uma resposta ao usuário ou comentário interno. Tudo fica registrado na auditoria."></textarea><div class="reply-tools"><button class="action-btn" onclick="insertTemplate('solicitamos mais detalhes')">Solicitar detalhes</button><button class="action-btn" onclick="insertTemplate('orientação enviada')">Orientação enviada</button><button class="action-btn" onclick="insertTemplate('resolvido após atendimento')">Resolvido</button></div></div>
-          <div class="detail-card t360-card"><h3>Anexos do chamado</h3><div class="attachments">${attachmentHtml(t)}</div><label class="upload-box">＋ Adicionar novos anexos<input id="modalFiles" type="file" multiple></label></div>
-        </div>
-
-        <div class="t360-pane" data-tab="asset">
-          <div class="detail-card t360-card"><h3>Ativo relacionado</h3>${asset360Html(a,t)}</div>
-          <div class="detail-card t360-card"><h3>Chamados anteriores deste ativo</h3>${relatedTicketHtml(assetTickets,'Nenhum chamado anterior para este ativo.')}</div>
-        </div>
-
-        <div class="t360-pane" data-tab="costs">
-          <div class="detail-card t360-card"><h3>Custos e impacto operacional</h3>${costHtml(cost)}</div>
-          <div class="detail-card t360-card"><h3>Horas e peças</h3><div class="cost-grid"><div><small>Horas técnicas</small><strong>${cost.hours}h</strong></div><div><small>Custo/hora</small><strong>R$ ${cost.hourValue}</strong></div><div><small>Peças</small><strong>R$ ${cost.parts}</strong></div><div><small>Impacto estimado</small><strong>R$ ${cost.impact}</strong></div></div></div>
-        </div>
-
-        <div class="t360-pane" data-tab="history">
-          <div class="detail-card t360-card"><h3>Histórico do solicitante</h3>${requester360Html(t,userTickets)}</div>
-          <div class="detail-card t360-card"><h3>Chamados recentes do solicitante</h3>${relatedTicketHtml(userTickets,'Nenhum outro chamado deste solicitante.')}</div>
-        </div>
-
-        <div class="t360-pane" data-tab="audit">
-          <div class="detail-card t360-card"><h3>Auditoria completa</h3><div class="audit-list">${auditHtml(t)}</div></div>
-        </div>
-      </section>
-
-      <aside class="t360-side">
-        <div class="detail-card side-status"><h3>Propriedades</h3><label>Status</label><select id="modalStatus">${statusList.map(s=>`<option ${s===t.status?'selected':''}>${esc(s)}</option>`).join('')}</select><label>Responsável</label><input id="modalResp" value="${esc(t.responsible)}"><label>Prioridade</label><select id="modalPriority"><option ${t.priority==='Baixa'?'selected':''}>Baixa</option><option ${t.priority==='Média'?'selected':''}>Média</option><option ${t.priority==='Alta'?'selected':''}>Alta</option><option ${t.priority==='Crítica'?'selected':''}>Crítica</option></select></div>
-        <div class="detail-card info-list"><h3>Dados 360°</h3><p><span>Solicitante</span><strong>${esc(t.requester)}</strong></p><p><span>Setor</span><strong>${esc(t.sector)}</strong></p><p><span>Categoria</span><strong>${esc(t.category)}</strong></p><p><span>Tipo</span><strong>${esc(t.type)}</strong></p><p><span>Impacto</span><strong>${esc(t.impact)}</strong></p><p><span>Idade</span><strong>${ticketAge(t)}</strong></p><p><span>Criado</span><strong>${fmt(t.createdAt)}</strong></p><p><span>Atualizado</span><strong>${fmt(t.updatedAt)}</strong></p></div>
-        <div class="detail-card asset-box"><h3>CMDB rápido</h3>${a?`<strong>${esc(a.id)} - ${esc(a.nome)}</strong><p>${esc(a.tipo)} • ${esc(a.local)}</p><p>Usuário: ${esc(a.usuario)}</p><p>Status: <span class="badge ${a.status==='Crítico'?'Crítica':''}">${esc(a.status)}</span></p><p>Garantia: ${esc(a.garantia)}</p>`:'<p>Nenhum ativo relacionado.</p>'}</div>
-        <div class="detail-card side-money"><h3>Impacto</h3><strong>R$ ${cost.total}</strong><span>Custo/risco estimado</span></div>
-      </aside>
-    </div>
-  </div>`;
-  showPage('ticketDetail')
-}
-function ticketCost(t){const map={Baixa:120,Média:420,Alta:1250,Crítica:4800};const hours={Baixa:1,Média:2,Alta:4,Crítica:8}[t.priority]||2;const parts=t.asset?({Impressoras:180,Hardware:260,'Manutenção TI':600}[t.category]||90):0;const hourValue=95;const impact=map[t.priority]||420;const total=hours*hourValue+parts+impact;return{hours,parts,hourValue,impact,total}}
-function conversationHtml(t){const list=[{who:t.requester,side:'user',txt:t.description,time:fmt(t.createdAt)},{who:t.responsible||'Service Desk',side:'agent',txt:(t.history&&t.history[1])?'Recebemos o chamado e iniciamos a análise técnica.':'Chamado recebido para triagem técnica.',time:fmt(t.updatedAt)}];return `<div class="chat-flow">${list.map(m=>`<div class="chat-msg ${m.side}"><div><strong>${esc(m.who)}</strong><p>${esc(m.txt)}</p><small>${esc(m.time)}</small></div></div>`).join('')}</div>`}
-function asset360Html(a,t){if(!a)return '<div class="empty-state">Nenhum ativo vinculado. Ao conectar um ativo, o sistema exibirá garantia, histórico, fornecedor, risco, manuais e chamados recorrentes.</div>';return `<div class="asset-hero"><div class="asset-icon">${a.tipo==='Impressora'?'🖨️':a.tipo==='Servidor'?'🖥️':a.tipo==='Rede'?'🌐':'💻'}</div><div><h2>${esc(a.nome)}</h2><p>${esc(a.id)} • ${esc(a.tipo)} • ${esc(a.local)}</p></div></div><div class="asset-metrics"><div><small>Usuário</small><strong>${esc(a.usuario)}</strong></div><div><small>Status</small><strong>${esc(a.status)}</strong></div><div><small>Risco</small><strong>${esc(a.risco)}</strong></div><div><small>Garantia</small><strong>${esc(a.garantia)}</strong></div></div><div class="next-actions"><span>Manual técnico</span><span>Nota fiscal</span><span>Garantia</span><span>Histórico de manutenção</span></div>`}
-function requester360Html(t,related){const total=tickets.filter(x=>x.requester===t.requester).length;const resolved=tickets.filter(x=>x.requester===t.requester&&isClosed(x)).length;const late=tickets.filter(x=>x.requester===t.requester&&isLate(x)).length;return `<div class="requester-card"><div class="avatar large">${esc(t.requester.split(' ').map(x=>x[0]).slice(0,2).join(''))}</div><div><h2>${esc(t.requester)}</h2><p>${esc(t.sector)} • usuário solicitante</p></div></div><div class="asset-metrics"><div><small>Chamados</small><strong>${total}</strong></div><div><small>Resolvidos</small><strong>${resolved}</strong></div><div><small>Vencidos</small><strong>${late}</strong></div><div><small>Últimos</small><strong>${related.length}</strong></div></div>`}
-function relatedTicketHtml(list,empty){if(!list.length)return `<div class="empty-state">${empty}</div>`;return `<div class="related-list">${list.map(x=>`<button onclick="openTicket('${esc(x.id)}')"><strong>${esc(x.id)}</strong><span>${esc(x.title)}</span><em class="badge ${esc(x.priority)}">${esc(x.priority)}</em></button>`).join('')}</div>`}
-function costHtml(c){return `<div class="money-hero"><small>Total estimado</small><strong>R$ ${c.total}</strong><span>Inclui horas técnicas, peças e impacto operacional estimado.</span></div>`}
-function auditHtml(t){const rows=[`Chamado ${t.id} criado por ${t.requester}`,`SLA calculado automaticamente`,...(t.history||[]),`Última atualização: ${fmt(t.updatedAt)}`];return rows.map((h,i)=>`<div class="audit-row"><span>${String(i+1).padStart(2,'0')}</span><div><strong>${i<2?'Sistema':'Operação'}</strong><p>${esc(h)}</p><small>${i<2?fmt(t.createdAt):fmt(t.updatedAt)}</small></div></div>`).join('')}
-window.switchDetailTab=(tab,btn)=>{document.querySelectorAll('.t360-pane').forEach(p=>p.classList.toggle('active',p.dataset.tab===tab));document.querySelectorAll('.t360-tabs button').forEach(b=>b.classList.remove('active'));btn.classList.add('active')}
-window.insertTemplate=txt=>{modalComment.value+=(modalComment.value?'\n':'')+({
-  'solicitamos mais detalhes':'Olá! Para seguir com o atendimento, poderia enviar mais detalhes, print do erro e informar o equipamento/local afetado?',
-  'orientação enviada':'Olá! Enviamos uma orientação inicial para correção. Por favor, teste e nos confirme se o problema foi resolvido.',
-  'resolvido após atendimento':'Chamado resolvido após atendimento técnico. Permanecemos à disposição caso o problema retorne.'
-}[txt]||txt)}
-window.quickStatus=(id,status)=>{const t=tickets.find(x=>x.id===id);if(!t)return;t.status=status;t.updatedAt=new Date().toISOString();if(status==='Em atendimento')t.responsible='Administrador';if(isClosed(t)&&!t.closedAt)t.closedAt=new Date().toISOString();t.history.push(`Ação rápida: status alterado para ${status}`);saveAll();renderAll();openTicket(id)}
-window.updateTicket=(id)=>{const t=tickets.find(x=>x.id===id);const old=t.status, oldP=t.priority;t.status=modalStatus.value;t.priority=modalPriority.value;t.responsible=modalResp.value;t.updatedAt=new Date().toISOString();const c=modalComment.value.trim();const newFiles=modalFiles?[...modalFiles.files].map(f=>f.name):[];if(newFiles.length)t.attachments.push(...newFiles);if(old!==t.status)t.history.push(`Status alterado de ${old} para ${t.status}`);if(oldP!==t.priority)t.history.push(`Prioridade alterada de ${oldP} para ${t.priority}`);if(isClosed(t)&&!t.closedAt)t.closedAt=new Date().toISOString();if(c)t.history.push(`Comentário/Resposta: ${c}`);if(newFiles.length)t.history.push(`Anexos adicionados: ${newFiles.join(', ')}`);saveAll();renderAll();openTicket(id)}
-function clearTicketFilters(){filterSector.value='';filterCategory.value='';filterPriority.value='';filterStatus.value='';filterSla.value='';renderTicketsTable()}
 function openReportCenter(){reportModal.showModal()}
 window.openReportCenter=openReportCenter
 function csvCell(v){return `"${String(v??'').replaceAll('"','""')}"`}

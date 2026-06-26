@@ -77,3 +77,14 @@ SPRINT 19 - NOC Modo TV vivo / dados sincronizados
 - O endpoint /api/noc-snapshot salva no Supabase quando SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY estiverem configurados.
 - Adicionada tabela noc_snapshots ao schema.sql.
 - Enquanto o Supabase não estiver configurado, o sistema usa fallback local/demo.
+
+
+SPRINT 21 - Banco Real + Supabase
+- Dados falsos de chamados e ativos foram removidos do front-end.
+- O sistema agora carrega chamados/ativos via /api/bootstrap.
+- Novo chamado salva em /api/tickets e persiste no Supabase.
+- CMDB/ativos serão lidos da tabela assets.
+- NOC continua atualizando snapshot e pode persistir em noc_snapshots.
+- Rode schema.sql no Supabase antes do deploy.
+- Configure na Vercel: SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY.
+- Enquanto o Supabase não estiver configurado, o sistema fica vazio e exibe aviso de banco real.
