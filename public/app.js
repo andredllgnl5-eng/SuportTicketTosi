@@ -171,6 +171,8 @@ function init(){
     renderAll();
   };
   logoutBtn.onclick=()=>{app.classList.add('hidden');loginScreen.classList.remove('hidden')};
+  if(window.userPanelBtn) userPanelBtn.onclick=openUserPanel;
+  document.addEventListener('keydown',e=>{if(e.key==='Escape')closeUserPanel()});
   themeBtn.onclick=()=>document.body.classList.toggle('dark');
   exportBtn.onclick=openReportCenter; printReportBtn.onclick=generateReportWindow; reportBtn.onclick=renderReports;
   ticketForm.onsubmit=createTicket;
@@ -179,6 +181,32 @@ function init(){
   fillOptions(); showPage('dashboard'); renderAll();
 }
 function showPage(id){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active-page'));$(id).classList.add('active-page');document.querySelectorAll('.nav-btn').forEach(b=>b.classList.toggle('active',b.dataset.page===id));const titles={dashboard:'Dashboard Executivo',tickets:'Chamados',ticketDetail:'Chamado 360°',newTicket:'Novo Chamado',kanban:'Kanban',serviceCatalog:'Catálogo de Serviços',assets:'CMDB Enterprise',knowledge:'Base de Conhecimento',reports:'Relatórios',settings:'Configurações',assetDetail:'Ativo 360°',workflow:'Workflow Enterprise',automations:'Automações Enterprise',clientPortal:'Portal do Usuário Premium',serviceDetail:'Serviço 360°',approvals:'Aprovações Enterprise',bi:'Business Intelligence',noc:'Central NOC Enterprise'};pageTitle.textContent=titles[id]||'Tosi Support Pro';pageSubtitle.textContent=titles[id]||'';renderAll();}
+function currentUser(){return appUser||users[0]||{name:'Administrador',email:'admin@tosi.com.br',role:'ADM',sector:'TI'}}
+function syncUserPanel(){
+  const u=currentUser();
+  const initials=(u.name||'AD').split(/\s+/).filter(Boolean).slice(0,2).map(x=>x[0]).join('').toUpperCase()||'AD';
+  document.querySelectorAll('.avatar,.user360-avatar').forEach(a=>a.textContent=initials);
+  if(window.topUserName) topUserName.textContent=u.name||'Administrador';
+  if(window.topUserRole) topUserRole.textContent=u.role||'ADM';
+  if(window.panelUserName) panelUserName.textContent=u.name||'Administrador';
+  if(window.panelUserRole) panelUserRole.textContent=(u.role||'ADM')+' • '+(u.sector||'TI');
+  if(window.panelUserEmail) panelUserEmail.textContent=u.email||'admin@tosi.com.br';
+  if(window.panelUserSector) panelUserSector.textContent=u.sector||'TI';
+  if(window.panelUserProfile) panelUserProfile.textContent=u.role||'ADM';
+}
+function openUserPanel(){syncUserPanel(); userPanelOverlay.classList.remove('hidden'); user360Panel.classList.remove('hidden'); setTimeout(()=>user360Panel.classList.add('open'),10)}
+function closeUserPanel(){if(!window.user360Panel)return; user360Panel.classList.remove('open'); setTimeout(()=>{user360Panel.classList.add('hidden'); userPanelOverlay.classList.add('hidden')},180)}
+function openUserSection(section){
+  const content={
+    perfil:`<h4>Perfil</h4><div><span>Nome</span><b>${esc(currentUser().name||'Administrador')}</b></div><div><span>E-mail</span><b>${esc(currentUser().email||'admin@tosi.com.br')}</b></div><div><span>Departamento</span><b>${esc(currentUser().sector||'TI')}</b></div><div><span>Cargo</span><b>${esc(currentUser().role||'ADM')}</b></div>`,
+    conta:`<h4>Conta e segurança</h4><div><span>Status da conta</span><b>Ativa</b></div><div><span>2FA</span><b>Recomendado</b></div><div><span>Sessões ativas</span><b>1 sessão</b></div><div><span>Alterar senha</span><b>Disponível após autenticação real</b></div>`,
+    gerenciar:`<h4>Gerenciar conta</h4><div><span>Tema</span><b>Claro/Escuro</b></div><div><span>Notificações</span><b>E-mail e alertas internos</b></div><div><span>Permissões</span><b>${esc(currentUser().role||'ADM')}</b></div><div><span>Preferências</span><b>Idioma PT-BR</b></div>`
+  };
+  user360Details.innerHTML=content[section]||content.perfil;
+}
+function logoutFromPanel(){closeUserPanel(); app.classList.add('hidden'); loginScreen.classList.remove('hidden')}
+window.openUserPanel=openUserPanel;window.closeUserPanel=closeUserPanel;window.openUserSection=openUserSection;window.logoutFromPanel=logoutFromPanel;
+
 function filteredTickets(){const q=globalSearch.value?.toLowerCase().trim()||'';return tickets.filter(t=>(!q||[t.id,t.title,t.requester,t.sector,t.category,t.status,t.asset].join(' ').toLowerCase().includes(q))&&(!filterSector.value||t.sector===filterSector.value)&&(!filterCategory.value||t.category===filterCategory.value)&&(!filterPriority.value||t.priority===filterPriority.value)&&(!filterStatus.value||t.status===filterStatus.value)&&(!filterSla.value||(filterSla.value==='late'?isLate(t):!isLate(t))))}
 function counts(data=tickets){return{total:data.length,open:data.filter(t=>t.status==='Aberto').length,work:data.filter(t=>t.status==='Em atendimento').length,wait:data.filter(t=>t.status==='Aguardando usuário').length,done:data.filter(isClosed).length,late:data.filter(isLate).length}}
 function setText(id,v){const e=$(id); if(e)e.textContent=v}

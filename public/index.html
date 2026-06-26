@@ -46,7 +46,7 @@
           <button class="top-icon" title="Alertas SLA" onclick="toggleNotificationCenter()">🔔<b id="alertBadge" class="badge-count">12</b></button>
           <div id="notificationCenter" class="notification-center hidden"></div>
           <button id="themeBtn" class="top-icon" title="Tema">☾</button>
-          <div class="user-pill"><div class="avatar">AD</div><div><strong>Administrador</strong><small>ADM</small></div><span>⌄</span></div>
+          <button id="userPanelBtn" class="user-pill" type="button" aria-haspopup="dialog" aria-controls="user360Panel"><div class="avatar">AD</div><div><strong id="topUserName">Administrador</strong><small id="topUserRole">ADM</small></div><span>⌄</span></button>
         </div>
       </header>
 
@@ -343,6 +343,48 @@
     <div id="articleModalContent"></div>
   </dialog>
   <dialog id="ticketModal"><button class="modal-close" onclick="ticketModal.close()">×</button><div id="modalContent"></div></dialog>
+
+  <div id="userPanelOverlay" class="user-panel-overlay hidden" onclick="closeUserPanel()"></div>
+  <aside id="user360Panel" class="user-360-panel hidden" aria-label="Painel 360 do usuário">
+    <div class="user360-hero">
+      <button class="user360-close" type="button" onclick="closeUserPanel()">×</button>
+      <div class="user360-avatar">AD</div>
+      <div>
+        <span class="user360-online">● Online</span>
+        <h3 id="panelUserName">Administrador</h3>
+        <p id="panelUserRole">Administrador do Sistema</p>
+      </div>
+    </div>
+    <div class="user360-body">
+      <section class="user360-card">
+        <h4>Minha conta</h4>
+        <button onclick="openUserSection('perfil')">👤 Perfil <small>Dados pessoais e setor</small></button>
+        <button onclick="openUserSection('conta')">🔐 Conta <small>Senha, 2FA e sessões</small></button>
+        <button onclick="openUserSection('gerenciar')">⚙ Gerenciar conta <small>Preferências e permissões</small></button>
+      </section>
+      <section id="user360Details" class="user360-card user360-details">
+        <h4>Resumo da sessão</h4>
+        <div><span>E-mail</span><b id="panelUserEmail">admin@tosi.com.br</b></div>
+        <div><span>Departamento</span><b id="panelUserSector">TI</b></div>
+        <div><span>Perfil</span><b id="panelUserProfile">ADM</b></div>
+        <div><span>Último acesso</span><b>Agora</b></div>
+      </section>
+      <section class="user360-card">
+        <h4>Atalhos</h4>
+        <div class="user360-actions">
+          <button onclick="showPage('settings');closeUserPanel()">Usuários</button>
+          <button onclick="showPage('reports');closeUserPanel()">Relatórios</button>
+          <button onclick="showPage('noc');closeUserPanel()">Modo NOC</button>
+          <button onclick="document.body.classList.toggle('dark')">Tema</button>
+        </div>
+      </section>
+    </div>
+    <div class="user360-footer">
+      <button class="ghost" type="button" onclick="closeUserPanel()">Fechar</button>
+      <button class="danger-logout" type="button" onclick="logoutFromPanel()">Sair</button>
+    </div>
+  </aside>
+
   <script src="./app.js"></script>
 </body>
 </html>
