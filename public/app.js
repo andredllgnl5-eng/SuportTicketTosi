@@ -1,47 +1,22 @@
 const $=id=>document.getElementById(id);
-const KEY='tosi-support-pro-v17';
-const departments=['TI','Compras','Manutenção','Qualidade','RH','Produção','Engenharia','Administração'];
-const categories=['Suporte Técnico','Acesso / Senha','Rede / Internet','Impressoras','ERP / Sistemas','Hardware','Software','E-mail / Microsoft 365','Segurança da Informação','Solicitação','Manutenção TI','Bug / Sistema'];
-const statusList=['Aberto','Em atendimento','Aguardando usuário','Resolvido','Fechado'];
-const users=[{name:'Administrador',email:'admin@tosi.com.br',role:'ADM',sector:'TI'},{name:'Carlos Oliveira',email:'carlos@tosi.com.br',role:'Atendente N2',sector:'TI'},{name:'Ana Paula',email:'ana@tosi.com.br',role:'Gestora',sector:'TI'},{name:'João da Silva',email:'joao@tosi.com.br',role:'Usuário',sector:'PCP'}];
+const KEY='tosi-support-pro-v22-secure';
+let departments=[];
+let categories=[];
+let statusList=[];
+let users=[];
 let assets=[];
 let approvals=[];
-
-const assetExtras={
- 'AT-0001':{brand:'Dell',model:'Latitude 5420',serial:'DL5420-PCP-001',os:'Windows 11 Pro',cpu:'Intel Core i7',ram:'16 GB',disk:'512 GB SSD',ip:'192.168.10.41',mac:'A4:5E:60:10:21:01',vendor:'Dell Brasil',nf:'NF-18452',purchase:'14/01/2024',availability:'99,5%',lastMaint:'18 dias atrás',photo:'💻',software:['Windows 11 Pro','Microsoft 365','Chrome','AnyDesk','Antivírus','ERP Client'],licenses:['Windows OEM','Microsoft 365 Business','Antivírus Endpoint'],docs:['Nota fiscal','Termo de responsabilidade','Garantia Dell','Manual do usuário']},
- 'AT-0002':{brand:'HP',model:'LaserJet M428',serial:'HP-M428-PCP-002',os:'Firmware 4.12',cpu:'Print Server',ram:'512 MB',disk:'-',ip:'192.168.10.80',mac:'B0:5A:DA:22:10:02',vendor:'HP / Revenda local',nf:'NF-19220',purchase:'10/03/2023',availability:'92,1%',lastMaint:'6 dias atrás',photo:'🖨️',software:['Driver Universal HP','Fila de impressão PCP','Print Server'],licenses:['Firmware HP','Contrato de suprimentos'],docs:['Nota fiscal','Manual técnico','Contrato toner','Termo de instalação']},
- 'AT-0003':{brand:'Dell',model:'PowerEdge T350',serial:'SRV-TOSI-003',os:'Windows Server 2022',cpu:'Xeon E-2336',ram:'64 GB',disk:'2 TB RAID',ip:'192.168.1.10',mac:'D8:9E:F3:01:12:03',vendor:'Dell Brasil',nf:'NF-17610',purchase:'02/05/2023',availability:'97,8%',lastMaint:'Hoje',photo:'🖥️',software:['Windows Server','SQL Server','Backup Agent','Antivírus Server','Monitoramento'],licenses:['Windows Server CAL','SQL Server','Backup Cloud'],docs:['Nota fiscal','Contrato suporte','Plano de backup','Diagrama de rede']},
- 'AT-0004':{brand:'Ubiquiti',model:'UniFi AP AC Pro',serial:'UBNT-AP-004',os:'UniFi OS',cpu:'-',ram:'-',disk:'-',ip:'192.168.10.2',mac:'78:8A:20:44:04',vendor:'Ubiquiti',nf:'NF-15544',purchase:'19/08/2024',availability:'99,9%',lastMaint:'35 dias atrás',photo:'🌐',software:['UniFi Controller','SSID Corporativo','SSID Visitantes'],licenses:['Controller gratuito'],docs:['Nota fiscal','Mapa Wi-Fi','Configuração VLAN']},
- 'AT-0005':{brand:'Lenovo',model:'ThinkCentre M70q',serial:'LEN-ADM-005',os:'Windows 11 Pro',cpu:'Intel Core i5',ram:'16 GB',disk:'256 GB SSD',ip:'192.168.20.22',mac:'AC:12:44:51:05',vendor:'Lenovo',nf:'NF-20102',purchase:'05/02/2024',availability:'99,2%',lastMaint:'22 dias atrás',photo:'🖥️',software:['Windows 11 Pro','Microsoft 365','ERP Administrativo','Chrome','Antivírus'],licenses:['Windows OEM','Microsoft 365 Business'],docs:['Nota fiscal','Termo de responsabilidade','Garantia Lenovo']}
-};
-
-const knowledgeArticles=[
- {id:'reset-senha-windows',title:'Resetar senha do Windows',subtitle:'Passo a passo para desbloqueio e troca segura de senha.',category:'Acesso / Senha',sla:'4h',audience:'Usuário final',pdf:'KB-001-Resetar-senha-Windows.pdf',steps:['Confirme se a tecla Caps Lock está desativada e tente digitar a senha novamente.','Verifique se você está conectado à rede corporativa ou VPN, quando estiver fora da empresa.','Na tela de login, clique em Opções de entrada e confirme se está usando o método correto.','Caso a senha tenha expirado, pressione Ctrl + Alt + Del e selecione Alterar senha.','Se a conta estiver bloqueada, abra um chamado informando usuário, setor, computador e horário do erro.'],checks:['Nunca envie sua senha por e-mail ou WhatsApp.','O Service Desk nunca pedirá sua senha atual.','Após redefinir, bloqueie e desbloqueie o Windows para testar o novo acesso.'],whenOpen:'Abra chamado se a conta estiver bloqueada, se aparecer mensagem de domínio indisponível ou se a troca de senha falhar.'},
- {id:'impressora-nao-imprime',title:'Impressora não imprime',subtitle:'Verificações rápidas de fila, toner, cabo e impressora padrão.',category:'Impressoras',sla:'6h',audience:'Usuário final / PCP',pdf:'KB-002-Impressora-nao-imprime.pdf',steps:['Confirme se a impressora está ligada e sem mensagens no visor.','Verifique se há papel, toner e se as tampas estão fechadas.','No Windows, abra Configurações > Bluetooth e dispositivos > Impressoras e scanners.','Confirme se a impressora correta está como padrão.','Abra a fila de impressão e cancele documentos travados.','Tente imprimir uma página de teste.'],checks:['Se a impressora for de rede, confirme se outros usuários também estão com problema.','Anexe print da fila de impressão e foto do visor da impressora ao chamado.','Informe o patrimônio ou nome da impressora, se disponível.'],whenOpen:'Abra chamado se a fila não limpar, se a impressora aparecer offline ou se houver erro físico no equipamento.'},
- {id:'abrir-chamado-print',title:'Como abrir chamado com print',subtitle:'Anexe evidências para acelerar o atendimento.',category:'Boas práticas',sla:'Imediato',audience:'Todos os usuários',pdf:'KB-003-Como-abrir-chamado-com-print.pdf',steps:['Clique em + Abrir chamado no Portal do Usuário.','Escolha a categoria mais próxima do problema.','Descreva o que você estava tentando fazer e qual erro apareceu.','Pressione Windows + Shift + S para capturar a tela do erro.','Anexe o print, informe horário do erro e equipamento utilizado.','Envie o chamado e acompanhe a resposta pelo portal.'],checks:['Não envie dados sensíveis no print, como senhas, tokens ou informações bancárias.','Um bom chamado deve ter: problema, impacto, horário, setor, equipamento e evidência.','Quanto melhor a evidência, mais rápido o atendimento.'],whenOpen:'Use esse procedimento sempre que houver mensagem de erro, tela travada ou comportamento inesperado.'},
- {id:'boas-praticas-seguranca',title:'Boas práticas de segurança',subtitle:'Phishing, links suspeitos e anexos desconhecidos.',category:'Segurança da Informação',sla:'1h',audience:'Todos os usuários',pdf:'KB-004-Boas-praticas-seguranca.pdf',steps:['Desconfie de e-mails com urgência exagerada, cobrança inesperada ou links encurtados.','Passe o mouse sobre links antes de clicar e confira o domínio.','Não abra anexos desconhecidos, principalmente .zip, .exe, .bat ou arquivos com macros.','Nunca informe senha, código 2FA ou dados internos por mensagem.','Se clicou em link suspeito, desconecte da rede e avise o TI imediatamente.'],checks:['Encaminhe o e-mail suspeito como anexo para o Service Desk.','Registre o chamado como Segurança da Informação e prioridade Alta.','Troque a senha se houver suspeita de vazamento.'],whenOpen:'Abra chamado imediatamente se recebeu phishing, clicou em link suspeito ou percebeu comportamento estranho no computador.'}
-];
-
-const serviceCatalog=[
-{id:'reset-senha',icon:'🔐',name:'Reset de senha',sla:'4h',owner:'Service Desk',category:'Acesso / Senha',type:'Acesso',priority:'Média',desc:'Recuperação de acesso, desbloqueio e redefinição de credenciais.'},
-{id:'computador',icon:'💻',name:'Suporte a computador',sla:'8h',owner:'Suporte N1/N2',category:'Hardware',type:'Incidente',priority:'Média',desc:'Problemas em notebook, desktop, periféricos e desempenho.'},
-{id:'impressoras',icon:'🖨️',name:'Impressoras',sla:'6h',owner:'Infraestrutura',category:'Impressoras',type:'Incidente',priority:'Alta',desc:'Fila travada, troca de toner, impressão em rede e drivers.'},
-{id:'rede-internet',icon:'🌐',name:'Rede / Internet',sla:'2h',owner:'Infraestrutura',category:'Rede / Internet',type:'Incidente',priority:'Alta',desc:'Queda de rede, Wi-Fi, cabo, switch e conectividade.'},
-{id:'email',icon:'📧',name:'E-mail corporativo',sla:'8h',owner:'Microsoft 365',category:'E-mail / Microsoft 365',type:'Requisição',priority:'Média',desc:'Outlook, assinatura, caixa compartilhada e spam.'},
-{id:'erp-sistemas',icon:'🧾',name:'ERP / Sistemas',sla:'12h',owner:'Sistemas',category:'ERP / Sistemas',type:'Problema',priority:'Média',desc:'Erros em sistemas internos, permissões e integrações.'},
-{id:'seguranca',icon:'🛡️',name:'Segurança da Informação',sla:'1h',owner:'Segurança',category:'Segurança da Informação',type:'Incidente',priority:'Crítica',desc:'Suspeita de phishing, vírus, vazamento ou acesso indevido.'},
-{id:'mudanca-ti',icon:'🔄',name:'Mudança de TI',sla:'48h',owner:'Gestão TI',category:'Suporte Técnico',type:'Mudança',priority:'Média',desc:'Alterações planejadas em sistemas, servidores e infraestrutura.'}
-];
-const serviceDetails={
- 'reset-senha':{impact:'Médio',approval:'Não exige aprovação',route:'Service Desk → Suporte N1',fields:['Usuário/login afetado','Sistema ou computador','Mensagem exibida','Horário do bloqueio'],steps:['Validar identidade do solicitante','Confirmar bloqueio ou expiração','Redefinir senha temporária','Orientar troca segura','Registrar evidência e encerrar'],faq:['Nunca informe a senha ao atendente.','O reset pode exigir VPN ou rede corporativa.'],template:'Não consigo acessar minha conta. Usuário afetado: _____. Mensagem exibida: _____.'},
- 'computador':{impact:'Médio',approval:'Pode exigir aprovação se houver troca de equipamento',route:'Service Desk → N1 → N2',fields:['Patrimônio do equipamento','Sintoma principal','Quando começou','Print/foto do erro'],steps:['Triagem inicial','Verificação remota','Diagnóstico de hardware/software','Correção ou abertura de manutenção','Validação com usuário'],faq:['Informe sempre o patrimônio AT-0000.','Anexe foto caso o equipamento não ligue.'],template:'Meu computador apresenta problema. Patrimônio: _____. Sintoma: _____. Impacto: _____.'},
- 'impressoras':{impact:'Alto',approval:'Não exige aprovação',route:'Service Desk → Infraestrutura',fields:['Nome/patrimônio da impressora','Setor/local','Erro no visor','Print da fila'],steps:['Checar fila de impressão','Validar rede e status do equipamento','Verificar toner/papel','Reinstalar driver se necessário','Registrar solução e prevenção'],faq:['Anexe foto do visor da impressora.','Informe se outros usuários também estão impactados.'],template:'A impressora não imprime. Patrimônio/nome: _____. Setor: _____. Erro exibido: _____.'},
- 'rede-internet':{impact:'Alto',approval:'Não exige aprovação',route:'Service Desk → Infraestrutura',fields:['Local afetado','Cabo ou Wi-Fi','Quantidade de usuários impactados','Horário da queda'],steps:['Mapear área afetada','Testar conectividade','Validar switch/AP/firewall','Aplicar correção','Monitorar estabilidade'],faq:['Queda geral deve ser registrada como prioridade alta.','Informe se o problema ocorre no cabo ou Wi-Fi.'],template:'Estou com problema de rede/internet. Local: _____. Tipo: cabo/Wi-Fi. Usuários impactados: _____.'},
- 'email':{impact:'Médio',approval:'Aprovação pode ser exigida para caixa compartilhada',route:'Service Desk → Microsoft 365',fields:['Conta afetada','Tipo de problema','Mensagem de erro','Dispositivo usado'],steps:['Validar conta','Checar licenças e políticas','Corrigir Outlook/webmail','Testar envio e recebimento','Documentar solução'],faq:['Problemas de senha devem usar o serviço Reset de senha.','Anexe print do erro do Outlook.'],template:'Tenho problema no e-mail corporativo. Conta: _____. Erro: _____. Dispositivo: _____.'},
- 'erp-sistemas':{impact:'Médio',approval:'Exige aprovação para novas permissões',route:'Service Desk → Sistemas',fields:['Sistema afetado','Tela/menu','Usuário afetado','Print do erro'],steps:['Reproduzir erro','Checar permissão','Validar regra de negócio','Escalar para sistemas se necessário','Retornar solução ao usuário'],faq:['Para acesso novo, informe o perfil desejado e gestor aprovador.','Para erro, envie print com data e horário.'],template:'Erro no sistema/ERP. Tela: _____. Usuário: _____. Mensagem: _____.'},
- 'seguranca':{impact:'Crítico',approval:'Tratamento imediato por Segurança',route:'Service Desk → Segurança → Gestor TI',fields:['Tipo de suspeita','E-mail/link/anexo envolvido','Usuário afetado','Ação já realizada'],steps:['Isolar risco','Coletar evidências','Bloquear acesso se necessário','Analisar e remover ameaça','Emitir orientação final'],faq:['Não apague evidências.','Se clicou em link suspeito, avise imediatamente.'],template:'Suspeita de segurança. Ocorreu: _____. Link/e-mail/anexo: _____. Ação tomada: _____.'},
- 'mudanca-ti':{impact:'Planejado',approval:'Exige aprovação do gestor de TI',route:'Solicitante → Gestão TI → Execução → Homologação',fields:['Objetivo da mudança','Janela desejada','Risco','Plano de rollback'],steps:['Registrar mudança','Analisar risco e impacto','Aprovar janela','Executar alteração','Homologar e encerrar'],faq:['Mudanças devem ter janela e plano de retorno.','Impactos em produção precisam de aprovação.'],template:'Solicito mudança de TI. Objetivo: _____. Janela: _____. Risco: _____. Rollback: _____.'}
-};
+let assetExtras={};
+let knowledgeArticles=[];
+let serviceCatalog=[];
+let serviceDetails={};
+let workflowStages=[];
+let automations=[];
+let selectedAutomationId=null;
+let selectedApprovalId=null;
+let automationBlockData=[];
+let automationLogData=[];
+let notificationSeed=[];
 function nowMinus(h){return new Date(Date.now()-h*3600*1000).toISOString()}function plus(h){return new Date(Date.now()+h*3600*1000).toISOString()}
 let tickets=[];
 let appUser=null;
@@ -59,6 +34,24 @@ async function api(path, options={}){
   const data=type.includes('application/json')?await res.json():await res.text();
   if(!res.ok || (data && data.ok===false)) throw new Error((data&&data.error)||'Falha na API');
   return data;
+}
+
+async function loadFrontendConfig(){
+  const data=await api('/frontend-config');
+  departments=data.departments||[];
+  categories=data.categories||[];
+  statusList=data.statusList||[];
+  users=data.users||[];
+  knowledgeArticles=data.knowledgeArticles||[];
+  serviceCatalog=data.serviceCatalog||[];
+  serviceDetails=data.serviceDetails||{};
+  workflowStages=data.workflowStages||[];
+  automations=data.automations||[];
+  assetExtras=data.assetExtras||{};
+  automationBlockData=data.automationBlockData||[];
+  automationLogData=data.automationLogData||[];
+  notificationSeed=data.notificationSeed||[];
+  selectedAutomationId=automations[0]?.id||null;
 }
 function normalizeTicket(row){
   return {
@@ -94,7 +87,8 @@ function normalizeAsset(row){
     local: row.location || row.local || '',
     status: row.status || 'Em uso',
     risco: row.risk || row.risco || 'Baixo',
-    garantia: row.warranty_until ? new Date(row.warranty_until).toLocaleDateString('pt-BR',{month:'2-digit',year:'numeric'}) : (row.garantia || '-')
+    garantia: row.warranty_until ? new Date(row.warranty_until).toLocaleDateString('pt-BR',{month:'2-digit',year:'numeric'}) : (row.garantia || '-'),
+    metadata: row.metadata || {}
   }
 }
 
@@ -143,6 +137,11 @@ async function loadFromBackend(){
     approvals=(data.approvals||[]).map(normalizeApproval);
     selectedApprovalId=approvals[0]?.id || null;
     if(data.user) appUser=data.user;
+    if(data.config){
+      departments=data.config.departments||departments; categories=data.config.categories||categories; statusList=data.config.statusList||statusList; users=data.config.users||users;
+      knowledgeArticles=data.config.knowledgeArticles||knowledgeArticles; serviceCatalog=data.config.serviceCatalog||serviceCatalog; serviceDetails=data.config.serviceDetails||serviceDetails;
+      workflowStages=data.config.workflowStages||workflowStages; automations=data.config.automations||automations; selectedAutomationId=automations[0]?.id||selectedAutomationId;
+    }
     backendReady=!!data.connected;
     if(!backendReady) showSystemNotice('Supabase ainda não configurado. Dados demo foram removidos; configure as variáveis para carregar dados reais.');
   }catch(e){
@@ -160,7 +159,8 @@ async function refreshData(){await loadFromBackend(); renderAll();}
 function fmtDate(v){return new Date(v).toLocaleDateString('pt-BR')}function fmt(v){return new Date(v).toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'})}
 function isClosed(t){return ['Resolvido','Fechado'].includes(t.status)}function isLate(t){return !isClosed(t)&&new Date(t.slaDueAt)<new Date()}
 function slaPercent(t){if(isClosed(t))return 100;const start=new Date(t.createdAt),due=new Date(t.slaDueAt),now=new Date();const total=due-start;if(total<=0)return 100;return Math.max(0,Math.min(100,Math.round((now-start)/total*100)))}
-function init(){
+async function init(){
+  try{await loadFrontendConfig()}catch(e){showSystemNotice('Não foi possível carregar configuração protegida do proxy: '+e.message)}
   nav.innerHTML=navItems.map(([id,ic,label])=>`<button class="nav-btn" data-page="${id}"><span>${ic}</span>${label}</button>`).join('');
   document.querySelectorAll('.nav-btn').forEach(b=>b.onclick=()=>showPage(b.dataset.page));
   loginForm.onsubmit=async e=>{
@@ -289,7 +289,7 @@ window.openAsset360=(id,scroll=true)=>{
 }
 
 
-function assetExtra(a){return assetExtras[a.id]||{brand:'-',model:a.nome,serial:a.id,os:'-',cpu:'-',ram:'-',disk:'-',ip:'-',mac:'-',vendor:'-',nf:'-',purchase:'-',availability:'-',lastMaint:'-',photo:assetIcon(a),software:[],licenses:[],docs:[]}}
+function assetExtra(a){return a.metadata||assetExtras[a.id]||{brand:'-',model:a.nome,serial:a.id,os:'-',cpu:'-',ram:'-',disk:'-',ip:'-',mac:'-',vendor:'-',nf:'-',purchase:'-',availability:'-',lastMaint:'-',photo:assetIcon(a),software:[],licenses:[],docs:[]}}
 function assetHealthItems(a){const s=assetScore(a), cls=assetStatusClass(a);return [
   ['Disponibilidade', assetExtra(a).availability, s],['CPU / Performance', cls==='danger'?'Alto uso':'Normal', cls==='danger'?45:86],['Memória', cls==='warn'?'Atenção':'OK', cls==='warn'?62:88],['Disco / Storage', cls==='danger'?'Crítico':'OK', cls==='danger'?38:91],['Rede', a.tipo==='Rede'?'Monitorado':'OK', a.tipo==='Rede'?96:82],['Backup', a.tipo==='Servidor'?'Obrigatório':'Padrão', a.tipo==='Servidor'?72:90],['Antivírus', 'Atualizado', 100],['Garantia', warrantyState(a).label, warrantyState(a).cls==='ok'?95:warrantyState(a).cls==='warn'?55:20]
 ]}
@@ -313,23 +313,7 @@ window.openAssetDetail=(id)=>{const a=assets.find(x=>x.id===id); if(!a)return; c
 }
 
 
-const defaultWorkflowStages=[
- {id:'novo',name:'Novo',color:'#0067d9',sla:'15 min',owner:'Service Desk',status:'Aberto',desc:'Entrada automática do chamado e registro inicial.'},
- {id:'triagem',name:'Triagem',color:'#7c3aed',sla:'30 min',owner:'Service Desk',status:'Aberto',desc:'Classificação, prioridade, categoria e impacto.'},
- {id:'n1',name:'Suporte N1',color:'#0ea5e9',sla:'4h',owner:'Atendente N1',status:'Em atendimento',desc:'Atendimento inicial, execução de procedimentos e resposta rápida.'},
- {id:'n2',name:'Suporte N2 / Infra',color:'#f79009',sla:'8h',owner:'Atendente N2',status:'Em atendimento',desc:'Casos técnicos avançados, infraestrutura, sistemas e fornecedor.'},
- {id:'usuario',name:'Aguardando usuário',color:'#f5b700',sla:'Pausado',owner:'Solicitante',status:'Aguardando usuário',desc:'SLA operacional pausado aguardando retorno ou validação.'},
- {id:'resolvido',name:'Resolvido / Fechado',color:'#12b76a',sla:'Encerrado',owner:'Service Desk',status:'Resolvido',desc:'Validação, documentação final e encerramento.'}
-];
-const workflowRulesData=[
- {if:'Prioridade = Alta ou Crítica',then:'Escalar para Suporte N2 / Infra',tag:'Escalação'},
- {if:'Categoria = Acesso / Senha',then:'Enviar para Suporte N1',tag:'Roteamento'},
- {if:'Status = Aguardando usuário',then:'Pausar SLA e enviar lembrete',tag:'SLA'},
- {if:'SLA consumido > 80%',then:'Notificar responsável e gestor',tag:'Alerta'},
- {if:'Ativo crítico vinculado',then:'Adicionar à fila crítica do dashboard',tag:'CMDB'}
-];
-let workflowStages=JSON.parse(localStorage.getItem(KEY+'-workflow')||'null')||defaultWorkflowStages;
-function saveWorkflow(){localStorage.setItem(KEY+'-workflow',JSON.stringify(workflowStages))}
+function saveWorkflow(){}
 function workflowStageForTicket(t){
  if(isClosed(t)) return 'resolvido';
  if(t.status==='Aguardando usuário') return 'usuario';
@@ -380,7 +364,7 @@ function renderWorkflowSide(stageId){if(!window.workflowSidePanel)return;const s
  </div><div class="workflow-checklist"><h4>Checklist Enterprise</h4><label><input type="checkbox" checked> Registrar auditoria</label><label><input type="checkbox" checked> Notificar responsável</label><label><input type="checkbox"> Exigir aprovação</label><label><input type="checkbox"> Pausar SLA</label></div>`}
 window.editWorkflowStage=(id,field,value)=>{const st=workflowStages.find(x=>x.id===id); if(!st)return; st[field]=value; saveWorkflow(); renderWorkflow();}
 window.addWorkflowStage=()=>{const id='etapa'+Date.now(); workflowStages.splice(Math.max(1,workflowStages.length-1),0,{id,name:'Nova etapa',color:'#475467',sla:'2h',owner:'Service Desk',status:'Em atendimento',desc:'Etapa personalizada do fluxo.'}); saveWorkflow(); renderWorkflow();}
-window.resetWorkflowDemo=()=>{workflowStages=JSON.parse(JSON.stringify(defaultWorkflowStages));saveWorkflow();renderWorkflow();}
+window.resetWorkflowDemo=()=>{alert('Modo demo removido. O workflow é carregado pelo proxy.');}
 function renderWorkflowRules(){if(!window.workflowRules)return;workflowRules.innerHTML=workflowRulesData.map(r=>`<div class="rule-card"><span>${esc(r.tag)}</span><p><b>Se</b> ${esc(r.if)}</p><p><b>Então</b> ${esc(r.then)}</p></div>`).join('')}
 function renderWorkflowAnalytics(byStage){if(!window.workflowAnalytics)return;const max=Math.max(1,...Object.values(byStage||{}).map(a=>a.length));workflowAnalytics.innerHTML=workflowStages.map(st=>{const n=(byStage?.[st.id]||[]).length;return `<div class="analytics-row"><span>${esc(st.name)}</span><i><b style="width:${Math.round(n/max*100)}%;background:${esc(st.color)}"></b></i><strong>${n}</strong></div>`}).join('')}
 
@@ -388,10 +372,6 @@ function renderWorkflowAnalytics(byStage){if(!window.workflowAnalytics)return;co
 
 
 // Sprint 17 - Central de Aprovações + Notificações Enterprise (dados reais/Supabase)
-let selectedApprovalId=null;
-const notificationSeed=[
- ['Sistema','Banco real aguardando configuração','Supabase','info']
-];
 function saveApprovals(){}
 function renderApprovals(){
  if(!window.approvalList)return;
@@ -422,26 +402,11 @@ window.toggleNotificationCenter=()=>{const el=window.notificationCenter;if(!el)r
 function renderNotificationCenter(){if(!window.notificationCenter)return;const pending=approvals.filter(a=>a.status==='Pendente').slice(0,3).map(a=>['Aprovação',a.title,a.id,'warn']);const late=tickets.filter(isLate).slice(0,2).map(t=>['SLA',t.id+' vencido',t.title,'danger']);const items=[...late,...pending,...notificationSeed];notificationCenter.innerHTML=`<div class="notif-head"><strong>Centro de Notificações</strong><button onclick="toggleNotificationCenter()">×</button></div>${items.slice(0,8).map(n=>`<button class="notif-item ${n[3]}" onclick="showPage('${n[0]==='Aprovação'?'approvals':'tickets'}');toggleNotificationCenter()"><span>${n[0]}</span><b>${esc(n[1])}</b><small>${esc(n[2])}</small></button>`).join('')}<button class="notif-footer" onclick="showPage('approvals');toggleNotificationCenter()">Ver aprovações</button>`}
 
 // Sprint 13 - Central de Automações Enterprise
-const defaultAutomations=[
- {id:'auto-sla-critico',name:'Escalação de SLA crítico',enabled:true,category:'SLA',trigger:'SLA consumido acima de 80%',condition:'Chamado aberto e prioridade Alta/Crítica',actions:['Notificar responsável','Escalar gestor TI','Mover para Suporte N2 / Infra','Registrar auditoria'],runs:128,success:126,savedHours:18,status:'Ativa'},
- {id:'auto-acesso',name:'Roteamento de acesso e senha',enabled:true,category:'Chamados',trigger:'Categoria = Acesso / Senha',condition:'Solicitação não crítica',actions:['Atribuir Service Desk','Aplicar SLA 4h','Enviar resposta padrão','Adicionar checklist'],runs:92,success:92,savedHours:11,status:'Ativa'},
- {id:'auto-garantia',name:'Garantia de ativo vencendo',enabled:true,category:'CMDB',trigger:'Garantia vence em 30 dias',condition:'Ativo em uso',actions:['Criar chamado preventivo','Notificar compras','Vincular ativo CMDB','Gerar alerta no dashboard'],runs:34,success:33,savedHours:9,status:'Ativa'},
- {id:'auto-parado',name:'Chamado parado sem resposta',enabled:false,category:'SLA',trigger:'Sem atualização por 4 horas',condition:'Status diferente de Fechado',actions:['Enviar lembrete','Notificar solicitante','Escalar responsável','Criar log de atraso'],runs:51,success:48,savedHours:7,status:'Pausada'}
-];
-let automations=JSON.parse(localStorage.getItem(KEY+'-automations')||'null')||defaultAutomations;
-let selectedAutomationId=automations[0]?.id;
-const automationBlockData=['Condição','E-mail','Microsoft Teams','WhatsApp','Delay','Criar chamado','Mover workflow','Atualizar SLA','Adicionar comentário','Criar aprovação','Gerar PDF','Webhook/API','Auditoria','CMDB'];
-const automationLogData=[
- ['há 2 min','SLA crítico','CH-2026-0250 escalado para Ana Paula','Sucesso'],
- ['há 18 min','Acesso / Senha','CH-2026-0253 recebeu checklist automático','Sucesso'],
- ['há 41 min','Garantia CMDB','AT-0002 gerou alerta preventivo','Sucesso'],
- ['há 1h','Chamado parado','Lembrete enviado ao solicitante','Falha Teams']
-];
-function saveAutomations(){localStorage.setItem(KEY+'-automations',JSON.stringify(automations))}
+function saveAutomations(){}
 function renderAutomations(){
  if(!window.automationKpis) return;
  const active=automations.filter(a=>a.enabled).length, runs=automations.reduce((s,a)=>s+a.runs,0), fails=automations.reduce((s,a)=>s+(a.runs-a.success),0), hours=automations.reduce((s,a)=>s+a.savedHours,0);
- automationKpis.innerHTML=`<div class="automation-kpi blue"><small>Automações</small><strong>${automations.length}</strong><span>${active} ativas</span></div><div class="automation-kpi green"><small>Execuções</small><strong>${runs}</strong><span>histórico demo</span></div><div class="automation-kpi red"><small>Falhas</small><strong>${fails}</strong><span>requer atenção</span></div><div class="automation-kpi orange"><small>Tempo otimizado</small><strong>${hours}h</strong><span>ganho operacional</span></div>`;
+ automationKpis.innerHTML=`<div class="automation-kpi blue"><small>Automações</small><strong>${automations.length}</strong><span>${active} ativas</span></div><div class="automation-kpi green"><small>Execuções</small><strong>${runs}</strong><span>via proxy</span></div><div class="automation-kpi red"><small>Falhas</small><strong>${fails}</strong><span>requer atenção</span></div><div class="automation-kpi orange"><small>Tempo otimizado</small><strong>${hours}h</strong><span>ganho operacional</span></div>`;
  if(window.automationSelector) automationSelector.innerHTML=automations.map(a=>`<option value="${esc(a.id)}" ${a.id===selectedAutomationId?'selected':''}>${esc(a.name)}</option>`).join('');
  renderAutomationCanvas();renderAutomationSide();renderAutomationBlocks();renderAutomationTemplates();renderAutomationLogs();
 }
@@ -459,10 +424,10 @@ function renderAutomationSide(){
 window.toggleAutomation=(id,value)=>{const a=automations.find(x=>x.id===id);if(!a)return;a.enabled=value==='Ativa';a.status=value;saveAutomations();renderAutomations()}
 window.editAutomation=(id,field,value)=>{const a=automations.find(x=>x.id===id);if(!a)return;a[field]=value;saveAutomations();renderAutomations()}
 window.simulateAutomationRun=id=>{const a=automations.find(x=>x.id===id);if(!a)return;a.runs++;a.success++;a.savedHours=Math.round((a.savedHours+0.2)*10)/10;saveAutomations();renderAutomations()}
-window.addAutomationRule=()=>{const id='auto-'+Date.now();automations.unshift({id,name:'Nova automação Help Desk',enabled:true,category:'Chamados',trigger:'Novo chamado criado',condition:'Prioridade definida',actions:['Classificar fila','Notificar responsável','Registrar auditoria'],runs:0,success:0,savedHours:0,status:'Ativa'});selectedAutomationId=id;saveAutomations();renderAutomations()}
-window.resetAutomationsDemo=()=>{automations=JSON.parse(JSON.stringify(defaultAutomations));selectedAutomationId=automations[0].id;saveAutomations();renderAutomations()}
+window.addAutomationRule=()=>{alert('Criação de automações deve ser feita via proxy/API com autenticação administrativa.')}
+window.resetAutomationsDemo=()=>{alert('Modo demo removido. As automações são carregadas pelo proxy.')}
 function renderAutomationBlocks(){if(!window.automationBlocks)return;automationBlocks.innerHTML=automationBlockData.map((b,i)=>`<button class="automation-block"><span>${['◇','✉','💬','☎','⏱','＋','⇄','⌛','☰','✓','PDF','API','◷','▥'][i]}</span>${esc(b)}</button>`).join('')}
-function renderAutomationTemplates(){if(!window.automationTemplates)return;automationTemplates.innerHTML=defaultAutomations.map(t=>`<button onclick="selectedAutomationId='${esc(t.id)}';renderAutomations()"><strong>${esc(t.name)}</strong><span>${esc(t.category)} • ${t.actions.length} ações</span></button>`).join('')}
+function renderAutomationTemplates(){if(!window.automationTemplates)return;automationTemplates.innerHTML=automations.map(t=>`<button onclick="selectedAutomationId='${esc(t.id)}';renderAutomations()"><strong>${esc(t.name)}</strong><span>${esc(t.category)} • ${t.actions.length} ações</span></button>`).join('')||'<div class="empty-state">Nenhuma automação configurada no proxy.</div>'}
 function renderAutomationLogs(){if(!window.automationLogs)return;automationLogs.innerHTML=automationLogData.map(l=>`<div class="automation-log"><small>${esc(l[0])}</small><div><strong>${esc(l[1])}</strong><span>${esc(l[2])}</span></div><b class="${l[3].includes('Falha')?'fail':'ok'}">${esc(l[3])}</b></div>`).join('')}
 
 
@@ -817,4 +782,16 @@ async function exportExecutiveExcel(){
   }finally{if(btn){btn.disabled=false;btn.innerHTML=old;}}
 }
 function generateReportWindow(){const data=filteredTickets();const rows=data.map(t=>`<tr><td>${esc(t.id)}</td><td>${esc(t.title)}</td><td>${esc(t.requester)}</td><td>${esc(t.sector)}</td><td>${esc(t.type)}</td><td>${esc(t.priority)}</td><td>${esc(t.status)}</td><td>${slaPercent(t)}%</td><td>${fmt(t.createdAt)}</td></tr>`).join('');const w=window.open('','_blank');w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Relatório Tosi Support Pro</title><style>body{font-family:Arial;margin:32px;color:#061b3a}header{display:flex;justify-content:space-between;align-items:center;border-bottom:5px solid #004B8D;padding-bottom:18px;margin-bottom:24px}img{width:230px}.meta{text-align:right}h1{margin:0;color:#004B8D}.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:20px 0}.kpi{border:1px solid #dbe7f5;border-radius:12px;padding:14px;background:#f8fbff}.kpi strong{display:block;font-size:28px;color:#004B8D}table{width:100%;border-collapse:collapse;margin-top:18px;font-size:12px}th{background:#004B8D;color:#fff;text-align:left}th,td{border:1px solid #dbe7f5;padding:9px}tr:nth-child(even){background:#f6f9fd}footer{margin-top:26px;font-size:12px;color:#667085}</style></head><body><header><img src="./logo-tosi.png"><div class="meta"><h1>Relatório Executivo de TI</h1><p>Tosi Support Pro - IT Help Desk / ITSM</p><p>Gerado em ${fmt(new Date())}</p></div></header><section class="kpis"><div class="kpi">Total<strong>${data.length}</strong></div><div class="kpi">Abertos<strong>${data.filter(t=>t.status==='Aberto').length}</strong></div><div class="kpi">Resolvidos<strong>${data.filter(isClosed).length}</strong></div><div class="kpi">SLA Vencido<strong>${data.filter(isLate).length}</strong></div></section><table><thead><tr><th>Protocolo</th><th>Título</th><th>Solicitante</th><th>Setor</th><th>Tipo</th><th>Prioridade</th><th>Status</th><th>SLA</th><th>Criado em</th></tr></thead><tbody>${rows}</tbody></table><footer>Documento gerado automaticamente pelo Tosi Support Pro. Uso interno Indústrias Tosi.</footer><script>window.print()<\/script></body></html>`);w.document.close()}
-init();
+
+async function bootSecureApp(){
+  try{
+    const r=await fetch('/api/shell');
+    if(!r.ok) throw new Error('Falha ao carregar shell');
+    document.body.innerHTML=await r.text();
+  }catch(e){
+    document.body.innerHTML='<div style="font-family:Arial;padding:32px;color:#061b3a"><h1>Tosi Support Pro</h1><p>Não foi possível carregar a interface segura pelo proxy.</p><pre>'+String(e.message)+'</pre></div>';
+    return;
+  }
+  await init();
+}
+bootSecureApp();

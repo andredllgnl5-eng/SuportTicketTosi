@@ -200,7 +200,7 @@ async function createAudit(entity, entity_id, action, payload={}){
   try{await supabaseRest('audit_logs',{method:'POST',body:JSON.stringify({entity,entity_id,action,payload})});}catch(e){}
 }
 async function getBootstrap(){
-  if(!hasSupabase()) return {connected:false, profiles:[], tickets:[], assets:[], approvals:[], automations:[]};
+  if(!hasSupabase()) return {connected:false, profiles:[], tickets:[], assets:[], approvals:[], automations:[], config:publicConfig()};
   const [profiles,tickets,assets,approvals,automations]=await Promise.all([
     dbSelect('profiles','select=*&order=created_at.desc'),
     dbSelect('tickets','select=*&order=created_at.desc'),
@@ -208,7 +208,7 @@ async function getBootstrap(){
     dbSelect('approvals','select=*&order=created_at.desc'),
     dbSelect('automations','select=*&order=created_at.desc')
   ]);
-  return {connected:true, profiles,tickets,assets,approvals,automations};
+  return {connected:true, profiles,tickets,assets,approvals,automations, config:publicConfig()};
 }
 async function createTicket(body){
   const protocol=await nextProtocol();
@@ -313,13 +313,61 @@ async function getNocSnapshot(){
   return globalThis.__tosiNocSnapshot || defaultNocSnapshot();
 }
 
+
+const secureConfig = {
+  departments:['TI','Compras','Manutenção','Qualidade','RH','Produção','Engenharia','Administração'],
+  categories:['Suporte Técnico','Acesso / Senha','Rede / Internet','Impressoras','ERP / Sistemas','Hardware','Software','E-mail / Microsoft 365','Segurança da Informação','Solicitação','Manutenção TI','Bug / Sistema'],
+  statusList:['Aberto','Em atendimento','Aguardando usuário','Resolvido','Fechado'],
+  users:[{name:'Administrador',email:'admin@tosi.com.br',role:'ADM',sector:'TI'}],
+  assetExtras:{},
+  notificationSeed:[],
+  automationBlockData:['Condição','E-mail','Microsoft Teams','WhatsApp','Delay','Criar chamado','Mover workflow','Atualizar SLA','Adicionar comentário','Criar aprovação','Gerar PDF','Webhook/API','Auditoria','CMDB'],
+  automationLogData:[],
+  workflowStages:[
+    {id:'novo',name:'Novo',status:'Aberto',color:'#0068ff',sla:'30 min',owner:'Service Desk'},
+    {id:'triagem',name:'Triagem',status:'Aberto',color:'#7a35f1',sla:'1h',owner:'Service Desk'},
+    {id:'n1',name:'Suporte N1',status:'Em atendimento',color:'#12b76a',sla:'4h',owner:'Nível 1'},
+    {id:'n2',name:'Suporte N2',status:'Em atendimento',color:'#f79009',sla:'8h',owner:'Nível 2'},
+    {id:'cliente',name:'Aguardando usuário',status:'Aguardando usuário',color:'#f5b700',sla:'Pausado',owner:'Solicitante'},
+    {id:'resolvido',name:'Resolvido',status:'Resolvido',color:'#98a2b3',sla:'Final',owner:'Service Desk'}
+  ],
+  automations:[
+    {id:'auto-sla-critico',name:'Escalação de SLA crítico',enabled:true,category:'SLA',trigger:'SLA consumido acima de 80%',condition:'Chamado aberto e prioridade Alta/Crítica',actions:['Notificar responsável','Escalar gestor TI','Mover para Suporte N2 / Infra','Registrar auditoria'],runs:0,success:0,savedHours:0,status:'Ativa'},
+    {id:'auto-acesso',name:'Roteamento de acesso e senha',enabled:true,category:'Chamados',trigger:'Categoria = Acesso / Senha',condition:'Solicitação não crítica',actions:['Atribuir Service Desk','Aplicar SLA 4h','Enviar resposta padrão','Adicionar checklist'],runs:0,success:0,savedHours:0,status:'Ativa'}
+  ],
+  knowledgeArticles:[
+    {id:'reset-senha-windows',title:'Resetar senha do Windows',subtitle:'Passo a passo para desbloqueio e troca segura de senha.',category:'Acesso / Senha',sla:'4h',audience:'Usuário final',pdf:'KB-001-Resetar-senha-Windows.pdf',steps:['Confirme se a tecla Caps Lock está desativada e tente digitar a senha novamente.','Verifique se você está conectado à rede corporativa ou VPN quando estiver fora da empresa.','Na tela de login, clique em Opções de entrada e confirme se está usando o método correto.','Caso a senha tenha expirado, pressione Ctrl + Alt + Del e selecione Alterar senha.','Se a conta estiver bloqueada, abra um chamado informando usuário, setor, computador e horário do erro.'],checks:['Nunca envie sua senha por e-mail ou WhatsApp.','O Service Desk nunca pedirá sua senha atual.','Após redefinir, bloqueie e desbloqueie o Windows para testar o novo acesso.'],whenOpen:'Abra chamado se a conta estiver bloqueada, se aparecer mensagem de domínio indisponível ou se a troca de senha falhar.'},
+    {id:'impressora-nao-imprime',title:'Impressora não imprime',subtitle:'Verificações rápidas de fila, toner, cabo e impressora padrão.',category:'Impressoras',sla:'6h',audience:'Usuário final / PCP',pdf:'KB-002-Impressora-nao-imprime.pdf',steps:['Confirme se a impressora está ligada e sem mensagens no visor.','Verifique papel, toner e se as tampas estão fechadas.','No Windows, abra Configurações > Bluetooth e dispositivos > Impressoras e scanners.','Confirme se a impressora correta está como padrão.','Abra a fila de impressão e cancele documentos travados.','Tente imprimir uma página de teste.'],checks:['Se a impressora for de rede, confirme se outros usuários também estão com problema.','Anexe print da fila de impressão e foto do visor da impressora ao chamado.','Informe o patrimônio ou nome da impressora, se disponível.'],whenOpen:'Abra chamado se a fila não limpar, se a impressora aparecer offline ou se houver erro físico no equipamento.'}
+  ],
+  serviceCatalog:[
+    {id:'reset-senha',icon:'🔐',name:'Reset de senha',sla:'4h',owner:'Service Desk',category:'Acesso / Senha',type:'Acesso',priority:'Média',desc:'Recuperação de acesso, desbloqueio e redefinição de credenciais.'},
+    {id:'computador',icon:'💻',name:'Suporte a computador',sla:'8h',owner:'Suporte N1/N2',category:'Hardware',type:'Incidente',priority:'Média',desc:'Problemas em notebook, desktop, periféricos e desempenho.'},
+    {id:'impressoras',icon:'🖨️',name:'Impressoras',sla:'6h',owner:'Infraestrutura',category:'Impressoras',type:'Incidente',priority:'Alta',desc:'Fila travada, troca de toner, impressão em rede e drivers.'},
+    {id:'rede-internet',icon:'🌐',name:'Rede / Internet',sla:'2h',owner:'Infraestrutura',category:'Rede / Internet',type:'Incidente',priority:'Alta',desc:'Queda de rede, Wi-Fi, cabo, switch e conectividade.'}
+  ],
+  serviceDetails:{
+    'reset-senha':{impact:'Médio',approval:'Não exige aprovação',route:'Service Desk → Suporte N1',fields:['Usuário/login afetado','Sistema ou computador','Mensagem exibida','Horário do bloqueio'],steps:['Validar identidade do solicitante','Confirmar bloqueio ou expiração','Redefinir senha temporária','Orientar troca segura','Registrar evidência e encerrar'],faq:['Nunca informe a senha ao atendente.','O reset pode exigir VPN ou rede corporativa.'],template:'Não consigo acessar minha conta. Usuário afetado: _____. Mensagem exibida: _____.'},
+    'computador':{impact:'Médio',approval:'Pode exigir aprovação se houver troca de equipamento',route:'Service Desk → N1 → N2',fields:['Patrimônio do equipamento','Sintoma principal','Quando começou','Print/foto do erro'],steps:['Triagem inicial','Verificação remota','Diagnóstico de hardware/software','Correção ou abertura de manutenção','Validação com usuário'],faq:['Informe sempre o patrimônio AT-0000.','Anexe foto caso o equipamento não ligue.'],template:'Meu computador apresenta problema. Patrimônio: _____. Sintoma: _____. Impacto: _____.'},
+    'impressoras':{impact:'Alto',approval:'Não exige aprovação',route:'Service Desk → Infraestrutura',fields:['Nome/patrimônio da impressora','Setor/local','Erro no visor','Print da fila'],steps:['Checar fila de impressão','Validar rede e status do equipamento','Verificar toner/papel','Reinstalar driver se necessário','Registrar solução e prevenção'],faq:['Anexe foto do visor da impressora.','Informe se outros usuários também estão impactados.'],template:'A impressora não imprime. Patrimônio/nome: _____. Setor: _____. Erro exibido: _____.'},
+    'rede-internet':{impact:'Alto',approval:'Não exige aprovação',route:'Service Desk → Infraestrutura',fields:['Local afetado','Cabo ou Wi-Fi','Quantidade de usuários impactados','Horário da queda'],steps:['Mapear área afetada','Testar conectividade','Validar switch/AP/firewall','Aplicar correção','Monitorar estabilidade'],faq:['Queda geral deve ser registrada como prioridade alta.','Informe se o problema ocorre no cabo ou Wi-Fi.'],template:'Estou com problema de rede/internet. Local: _____. Tipo: cabo/Wi-Fi. Usuários impactados: _____.'}
+  }
+};
+function publicConfig(){ return secureConfig; }
+function readShell(){
+  const file = path.join(process.cwd(),'api','templates','shell.html');
+  try { return fs.readFileSync(file,'utf8'); }
+  catch(e){ return '<div id="loginScreen" class="login-screen"><form id="loginForm" class="login-card"><h2>Tosi Support Pro</h2><label>E-mail</label><input id="loginEmail" type="email" value="admin@tosi.com.br"><label>Senha</label><input id="loginPassword" type="password" value="123456"><button class="primary">Entrar</button></form></div><div id="app" class="app hidden"><aside class="sidebar"><nav id="nav"></nav></aside><main class="main"><header class="topbar"><h2 id="pageTitle">Dashboard</h2><p id="pageSubtitle"></p></header><section id="dashboard" class="page active-page"></section></main></div>'; }
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', process.env.ALLOWED_ORIGIN || '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   if (req.method === 'OPTIONS') return res.status(204).end();
   const route = req.url || '/api';
-  if (route.includes('/health')) return res.status(200).json({ ok:true, service:'Tosi Support Pro API', version:'6.1.0' });
+  if (route.includes('/health')) return res.status(200).json({ ok:true, service:'Tosi Support Pro API', version:'22-secure' });
+  if (route.includes('/shell')) { res.setHeader('Content-Type','text/html; charset=utf-8'); return res.status(200).send(readShell()); }
+  if (route.includes('/frontend-config')) return res.status(200).json({ok:true,...publicConfig()});
   if (route.includes('/bootstrap')) {
     try { return res.status(200).json({ok:true,...await getBootstrap()}); }
     catch(e){ return res.status(500).json({ok:false,error:'Falha ao carregar bootstrap',details:e.message}); }

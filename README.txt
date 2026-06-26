@@ -96,3 +96,12 @@ SPRINT 21.1 - Limpeza real de aprovações
 - Se não houver dados reais, a tela mostra estado vazio.
 - Adicionados endpoints GET/POST/PATCH para aprovações.
 - Schema atualizado com campos adicionais e índices para aprovações reais.
+
+
+SPRINT 22.1 - Segurança / Proxy First
+- index.html foi reduzido para um shell mínimo, sem telas, dados, listas ou regras de negócio.
+- A estrutura visual principal agora é carregada pelo endpoint /api/shell.
+- Catálogo de serviços, artigos de conhecimento, workflow e automações foram movidos para o proxy via /api/frontend-config.
+- Dados operacionais continuam vindo do Supabase via /api/bootstrap, /api/tickets, /api/assets e /api/approvals.
+- Removidos localStorage para automações/workflow e dados demo de operação.
+- Observação técnica: nenhum front-end web consegue esconder 100% do JavaScript do navegador. Segurança real deve ficar no proxy, Supabase RLS, validação de permissões, JWT/cookie HttpOnly e nunca expor service_role no client.
