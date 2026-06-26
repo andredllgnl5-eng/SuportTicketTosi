@@ -30,7 +30,7 @@
       <div class="side-brand"><img src="./logo-tosi-white.png" alt="Indústrias Tosi"></div>
       <div class="side-label">Central de TI</div>
       <nav id="nav"></nav>
-      <div class="side-footer"><div class="headset">⌕</div><strong>TOSI SUPPORT PRO</strong><small>IT Help Desk / ITSM</small><em>v13.0 Automações Enterprise</em></div>
+      <div class="side-footer"><div class="headset">⌕</div><strong>TOSI SUPPORT PRO</strong><small>IT Help Desk / ITSM</small><em>v14.0 Portal do Usuário</em></div>
       <button id="logoutBtn" class="side-exit">Sair</button>
     </aside>
 
@@ -203,6 +203,48 @@
           <div class="card"><h3>Biblioteca de blocos</h3><div id="automationBlocks" class="automation-blocks"></div></div>
           <div class="card"><h3>Templates Enterprise</h3><div id="automationTemplates" class="automation-templates"></div></div>
           <div class="card"><h3>Execuções recentes</h3><div id="automationLogs" class="automation-logs"></div></div>
+        </div>
+      </section>
+
+
+
+      <section id="clientPortal" class="page client-portal-page">
+        <div class="portal-hero">
+          <div>
+            <span class="eyebrow">Portal do Usuário Premium</span>
+            <h3>Autoatendimento de TI simples, bonito e rápido</h3>
+            <p>Uma área separada para o colaborador abrir chamados, acompanhar respostas, ver seus equipamentos, consultar serviços e avaliar o atendimento.</p>
+          </div>
+          <div class="portal-hero-actions">
+            <button class="primary" onclick="showPage('newTicket')">＋ Abrir chamado</button>
+            <button class="ghost" onclick="focusPortalSearch()">⌕ Buscar ajuda</button>
+          </div>
+        </div>
+        <div class="portal-layout">
+          <aside class="portal-profile card">
+            <div class="portal-avatar">JS</div>
+            <h3>João da Silva</h3>
+            <p>PCP • Usuário final</p>
+            <div class="portal-score"><strong>96%</strong><span>Satisfação média</span></div>
+            <div id="portalProfileStats" class="portal-profile-stats"></div>
+          </aside>
+          <div class="portal-main">
+            <div id="portalKpis" class="portal-kpis"></div>
+            <div class="card portal-search-card">
+              <div>
+                <h3>Como podemos ajudar?</h3>
+                <p>Pesquise no catálogo ou acompanhe seus chamados antes de acionar o Service Desk.</p>
+              </div>
+              <div class="portal-search"><input id="portalSearch" placeholder="Ex: impressora, senha, internet, notebook..." oninput="renderClientPortal()"><span>⌕</span></div>
+            </div>
+            <div class="portal-grid">
+              <div class="card portal-panel"><div class="panel-title"><h3>Meus chamados</h3><button onclick="showPage('tickets')">Ver todos</button></div><div id="portalTickets"></div></div>
+              <div class="card portal-panel"><div class="panel-title"><h3>Meus ativos</h3><button onclick="showPage('assets')">CMDB</button></div><div id="portalAssets"></div></div>
+              <div class="card portal-panel wide"><div class="panel-title"><h3>Catálogo rápido</h3><button onclick="showPage('serviceCatalog')">Catálogo completo</button></div><div id="portalCatalog"></div></div>
+              <div class="card portal-panel"><div class="panel-title"><h3>Base de conhecimento</h3><button onclick="showPage('knowledge')">Artigos</button></div><div id="portalKb"></div></div>
+              <div class="card portal-panel"><div class="panel-title"><h3>Avaliação do atendimento</h3><button onclick="alert('Avaliação registrada em modo demonstração.')">Enviar</button></div><div class="csat-box"><strong>★★★★★</strong><p>Como foi sua última experiência com o suporte?</p><textarea placeholder="Deixe um comentário opcional..."></textarea></div></div>
+            </div>
+          </div>
         </div>
       </section>
 

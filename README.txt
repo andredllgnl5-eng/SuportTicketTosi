@@ -46,3 +46,6 @@ SPRINT 12 - Workflow Enterprise
 - Chamados podem ser arrastados entre etapas; status e histórico são atualizados.
 - Adicionadas regras automáticas demonstrativas, analytics por etapa, KPIs e painel de configuração da etapa.
 - Versão visual: v12.0 Workflow Enterprise.
+
+
+SPRINT 14: Portal do Usuário Premium implementado. Acesse pelo menu "Portal do Usuário".
