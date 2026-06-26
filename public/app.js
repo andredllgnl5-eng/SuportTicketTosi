@@ -54,8 +54,95 @@ function renderKb(){if(!kbList)return;const kb=[['Como resetar senha do Windows/
 function renderReports(){if(!reportOps)return;const total=tickets.length,closed=tickets.filter(isClosed).length,late=tickets.filter(isLate).length;reportOps.innerHTML=`<div class="report-metric"><span>Total de chamados</span><strong>${total}</strong></div><div class="report-metric"><span>Resolvidos/fechados</span><strong>${closed}</strong></div><div class="report-metric"><span>Taxa de conclusão</span><strong>${total?Math.round(closed/total*100):0}%</strong></div><div class="report-metric"><span>Backlog operacional</span><strong>${total-closed}</strong></div>`;reportSla.innerHTML=`<div class="report-metric"><span>SLA vencido</span><strong>${late}</strong></div><div class="report-metric"><span>Críticos em aberto</span><strong>${tickets.filter(t=>(t.priority==='Crítica'||t.priority==='Alta')&&!isClosed(t)).length}</strong></div><div class="report-metric"><span>Dentro do prazo</span><strong>${total-late}</strong></div>`;if(reportTable)reportTable.innerHTML=`<div class="table-wrap"><table class="table"><thead><tr><th>Indicador</th><th>Valor</th><th>Comentário executivo</th></tr></thead><tbody><tr><td>MTTR médio</td><td>3h20m</td><td>Tempo médio competitivo para suporte interno.</td></tr><tr><td>Chamados críticos</td><td>${tickets.filter(t=>t.priority==='Crítica'||t.priority==='Alta').length}</td><td>Requer acompanhamento do gestor de TI.</td></tr><tr><td>Ativos impactados</td><td>${new Set(tickets.map(t=>t.asset).filter(Boolean)).size}</td><td>Vínculo com CMDB agrega rastreabilidade.</td></tr></tbody></table></div>`}
 function renderSettings(){if(!departmentsList)return;departmentsList.innerHTML=departments.map(d=>`<span class="chip">${esc(d)}</span>`).join('');usersList.innerHTML=users.map(u=>`<div class="ticket-item"><div><strong>${esc(u.name)}</strong><br><small>${esc(u.email)} • ${esc(u.sector)}</small></div><span class="badge">${esc(u.role)}</span></div>`).join('')}
 function createTicket(e){e.preventDefault();const n=260+tickets.length;const id=`CH-2026-${String(n).padStart(4,'0')}`;const priority=ticketPriority.value;const slaHours=priority==='Crítica'?1:priority==='Alta'?4:priority==='Média'?12:24;const files=[...ticketFiles.files].map(f=>f.name);tickets.unshift({id,title:ticketTitle.value,requester:ticketRequester.value,sector:ticketSector.value,category:ticketCategory.value,priority,status:'Aberto',type:ticketType.value,asset:ticketAsset.value,impact:ticketImpact.value,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),slaDueAt:plus(slaHours),responsible:'Service Desk',attachments:files,description:ticketDescription.value+'\nLocal: '+ticketLocation.value,history:['Chamado aberto via catálogo de TI']});saveAll();ticketForm.reset();ticketRequester.value='Administrador';showPage('tickets');}
-window.openTicket=id=>{const t=tickets.find(x=>x.id===id);if(!t)return;modalContent.innerHTML=`<h2>${esc(t.id)}</h2><h3>${esc(t.title)}</h3><p>${esc(t.description)}</p><div class="modal-grid"><p><strong>Solicitante:</strong> ${esc(t.requester)}</p><p><strong>Setor:</strong> ${esc(t.sector)}</p><p><strong>Categoria:</strong> ${esc(t.category)}</p><p><strong>Tipo:</strong> ${esc(t.type)}</p><p><strong>Prioridade:</strong> ${esc(t.priority)}</p><p><strong>Ativo:</strong> ${esc(t.asset||'Não vinculado')}</p><p><strong>SLA:</strong> ${fmt(t.slaDueAt)}</p><p><strong>Criado em:</strong> ${fmt(t.createdAt)}</p></div><label>Status</label><select id="modalStatus">${statusList.map(s=>`<option ${s===t.status?'selected':''}>${esc(s)}</option>`).join('')}</select><label>Responsável</label><input id="modalResp" value="${esc(t.responsible)}"><p><strong>Anexos:</strong> ${t.attachments.length?t.attachments.map(esc).join(', '):'Nenhum'}</p><h4>Timeline / Auditoria</h4><ul>${t.history.map(h=>`<li>${esc(h)}</li>`).join('')}</ul><textarea id="modalComment" placeholder="Adicionar resposta pública ou comentário interno"></textarea><button class="primary" onclick="updateTicket('${esc(t.id)}')">Salvar alteração</button>`;ticketModal.showModal()}
-window.updateTicket=id=>{const t=tickets.find(x=>x.id===id);const old=t.status;t.status=modalStatus.value;t.responsible=modalResp.value;t.updatedAt=new Date().toISOString();const c=modalComment.value.trim();if(old!==t.status)t.history.push(`Status alterado de ${old} para ${t.status}`);if(isClosed(t)&&!t.closedAt)t.closedAt=new Date().toISOString();if(c)t.history.push(`Comentário: ${c}`);saveAll();ticketModal.close();renderAll()}
+
+function timeLeftText(t){
+  if(isClosed(t)) return 'Encerrado';
+  const diff=new Date(t.slaDueAt)-new Date();
+  const neg=diff<0, abs=Math.abs(diff);
+  const h=Math.floor(abs/3600000), m=Math.floor((abs%3600000)/60000);
+  return neg?`Vencido há ${h}h ${m}m`:`${h}h ${m}m restantes`;
+}
+function assetInfo(id){return assets.find(a=>a.id===id)}
+function ticketAge(t){
+  const diff=Date.now()-new Date(t.createdAt).getTime();
+  const h=Math.floor(diff/3600000), m=Math.floor((diff%3600000)/60000);
+  return h?`${h}h ${m}m`:`${m}m`;
+}
+function timelineHtml(t){
+  const base=[`Chamado criado por ${t.requester}`,`SLA iniciado automaticamente`,...(t.history||[])];
+  return base.map((h,i)=>`<div class="timeline-row ${i===base.length-1?'last':''}"><div class="timeline-dot"></div><div><strong>${esc(i===0?'Abertura':i===1?'SLA':'Evento')}</strong><p>${esc(h)}</p><small>${i<2?fmt(t.createdAt):fmt(t.updatedAt)}</small></div></div>`).join('')
+}
+function attachmentHtml(t){
+  if(!t.attachments || !t.attachments.length) return '<div class="empty-attach">Nenhum anexo enviado neste chamado.</div>';
+  return t.attachments.map(a=>`<div class="attach-card"><span>📎</span><div><strong>${esc(a)}</strong><small>Arquivo vinculado ao chamado</small></div><button class="action-btn">Visualizar</button></div>`).join('')
+}
+function printTicket(id){
+  const t=tickets.find(x=>x.id===id); if(!t) return;
+  const a=assetInfo(t.asset);
+  const w=window.open('','_blank');
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(t.id)} - Relatório</title><style>
+  body{font-family:Arial,Helvetica,sans-serif;margin:34px;color:#061b3a}header{display:flex;justify-content:space-between;align-items:center;border-bottom:6px solid #004B8D;padding-bottom:18px;margin-bottom:24px}img{width:220px}.meta{text-align:right}h1{color:#004B8D;margin:0}.box{border:1px solid #dbe7f5;border-radius:14px;padding:16px;margin:14px 0;background:#fbfdff}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.item small{display:block;color:#64748b;text-transform:uppercase;font-weight:bold}.item strong{font-size:16px}.badge{display:inline-block;border-radius:999px;padding:7px 12px;background:#e8f2ff;color:#004B8D;font-weight:bold}.red{background:#ffe8e6;color:#d91b2b}.green{background:#e9faef;color:#008c4b}table{width:100%;border-collapse:collapse;margin-top:12px}td,th{border:1px solid #dbe7f5;padding:10px;text-align:left}th{background:#004B8D;color:white}footer{margin-top:24px;color:#667085;font-size:12px}</style></head><body>
+  <header><img src="./logo-tosi.png"><div class="meta"><h1>Relatório do Chamado</h1><p><strong>${esc(t.id)}</strong></p><p>Gerado em ${fmt(new Date())}</p></div></header>
+  <section class="box"><h2>${esc(t.title)}</h2><p>${esc(t.description)}</p><span class="badge ${isLate(t)?'red':'green'}">SLA: ${timeLeftText(t)}</span></section>
+  <section class="box"><h3>Dados principais</h3><div class="grid">
+  <div class="item"><small>Status</small><strong>${esc(t.status)}</strong></div><div class="item"><small>Prioridade</small><strong>${esc(t.priority)}</strong></div><div class="item"><small>Tipo ITSM</small><strong>${esc(t.type)}</strong></div>
+  <div class="item"><small>Solicitante</small><strong>${esc(t.requester)}</strong></div><div class="item"><small>Setor</small><strong>${esc(t.sector)}</strong></div><div class="item"><small>Responsável</small><strong>${esc(t.responsible)}</strong></div>
+  <div class="item"><small>Categoria</small><strong>${esc(t.category)}</strong></div><div class="item"><small>Ativo</small><strong>${esc(t.asset||'Não vinculado')}</strong></div><div class="item"><small>Criado em</small><strong>${fmt(t.createdAt)}</strong></div>
+  </div></section>
+  <section class="box"><h3>Ativo / CMDB</h3><p>${a?`${esc(a.nome)} • ${esc(a.tipo)} • ${esc(a.local)} • Garantia ${esc(a.garantia)}`:'Nenhum ativo relacionado.'}</p></section>
+  <section class="box"><h3>Histórico / Auditoria</h3><table><thead><tr><th>Evento</th></tr></thead><tbody>${(t.history||[]).map(h=>`<tr><td>${esc(h)}</td></tr>`).join('')}</tbody></table></section>
+  <footer>Documento gerado automaticamente pelo Tosi Support Pro v6. Uso interno Indústrias Tosi.</footer><script>window.print()<\/script></body></html>`);
+  w.document.close();
+}
+window.printTicket=printTicket;
+window.openTicket=id=>{
+  const t=tickets.find(x=>x.id===id);if(!t)return;
+  const a=assetInfo(t.asset);
+  const pct=slaPercent(t), late=isLate(t);
+  modalContent.innerHTML=`
+  <div class="ticket-detail">
+    <div class="ticket-hero ${late?'danger':''}">
+      <div>
+        <div class="ticket-kicker"><span>${esc(t.id)}</span><span>${esc(t.type)}</span><span class="badge ${esc(t.priority)}">${esc(t.priority)}</span><span class="badge status">${esc(t.status)}</span></div>
+        <h2>${esc(t.title)}</h2>
+        <p>${esc(t.description)}</p>
+      </div>
+      <div class="sla-widget">
+        <small>SLA do chamado</small>
+        <strong>${timeLeftText(t)}</strong>
+        <div class="bar"><i style="width:${pct}%;background:${late?'#f04438':pct>75?'#f79009':'#12b76a'}"></i></div>
+        <em>${pct}% consumido</em>
+      </div>
+    </div>
+    <div class="ticket-actions">
+      <button class="primary" onclick="updateTicket('${esc(t.id)}','reply')">Responder / Salvar</button>
+      <button class="ghost" onclick="quickStatus('${esc(t.id)}','Em atendimento')">Assumir</button>
+      <button class="ghost" onclick="quickStatus('${esc(t.id)}','Aguardando usuário')">Aguardar usuário</button>
+      <button class="ghost" onclick="quickStatus('${esc(t.id)}','Resolvido')">Resolver</button>
+      <button class="ghost" onclick="printTicket('${esc(t.id)}')">Gerar PDF</button>
+    </div>
+    <div class="ticket-detail-grid">
+      <section class="detail-main">
+        <div class="detail-card"><h3>Resposta ao usuário / comentário interno</h3><textarea id="modalComment" placeholder="Digite a resposta ao usuário ou comentário interno. Tudo fica registrado na auditoria."></textarea><div class="reply-tools"><button class="action-btn" onclick="insertTemplate('solicitamos mais detalhes')">Solicitar detalhes</button><button class="action-btn" onclick="insertTemplate('orientação enviada')">Orientação enviada</button><button class="action-btn" onclick="insertTemplate('resolvido após atendimento')">Resolvido</button></div></div>
+        <div class="detail-card"><h3>Timeline / Auditoria</h3><div class="timeline">${timelineHtml(t)}</div></div>
+        <div class="detail-card"><h3>Anexos</h3><div class="attachments">${attachmentHtml(t)}</div><label class="upload-box">＋ Adicionar novos anexos<input id="modalFiles" type="file" multiple></label></div>
+      </section>
+      <aside class="detail-side">
+        <div class="detail-card"><h3>Propriedades</h3><label>Status</label><select id="modalStatus">${statusList.map(s=>`<option ${s===t.status?'selected':''}>${esc(s)}</option>`).join('')}</select><label>Responsável</label><input id="modalResp" value="${esc(t.responsible)}"><label>Prioridade</label><select id="modalPriority"><option ${t.priority==='Baixa'?'selected':''}>Baixa</option><option ${t.priority==='Média'?'selected':''}>Média</option><option ${t.priority==='Alta'?'selected':''}>Alta</option><option ${t.priority==='Crítica'?'selected':''}>Crítica</option></select></div>
+        <div class="detail-card info-list"><h3>Dados do chamado</h3><p><span>Solicitante</span><strong>${esc(t.requester)}</strong></p><p><span>Setor</span><strong>${esc(t.sector)}</strong></p><p><span>Categoria</span><strong>${esc(t.category)}</strong></p><p><span>Impacto</span><strong>${esc(t.impact)}</strong></p><p><span>Idade</span><strong>${ticketAge(t)}</strong></p><p><span>Criado</span><strong>${fmt(t.createdAt)}</strong></p><p><span>Atualizado</span><strong>${fmt(t.updatedAt)}</strong></p></div>
+        <div class="detail-card asset-box"><h3>Ativo / CMDB</h3>${a?`<strong>${esc(a.id)} - ${esc(a.nome)}</strong><p>${esc(a.tipo)} • ${esc(a.local)}</p><p>Usuário: ${esc(a.usuario)}</p><p>Status: <span class="badge ${a.status==='Crítico'?'Crítica':''}">${esc(a.status)}</span></p><p>Garantia: ${esc(a.garantia)}</p>`:'<p>Nenhum ativo relacionado.</p>'}</div>
+      </aside>
+    </div>
+  </div>`;
+  ticketModal.showModal()
+}
+window.insertTemplate=txt=>{modalComment.value+=(modalComment.value?'\n':'')+({
+  'solicitamos mais detalhes':'Olá! Para seguir com o atendimento, poderia enviar mais detalhes, print do erro e informar o equipamento/local afetado?',
+  'orientação enviada':'Olá! Enviamos uma orientação inicial para correção. Por favor, teste e nos confirme se o problema foi resolvido.',
+  'resolvido após atendimento':'Chamado resolvido após atendimento técnico. Permanecemos à disposição caso o problema retorne.'
+}[txt]||txt)}
+window.quickStatus=(id,status)=>{const t=tickets.find(x=>x.id===id);if(!t)return;t.status=status;t.updatedAt=new Date().toISOString();if(status==='Em atendimento')t.responsible='Administrador';if(isClosed(t)&&!t.closedAt)t.closedAt=new Date().toISOString();t.history.push(`Ação rápida: status alterado para ${status}`);saveAll();ticketModal.close();renderAll()}
+window.updateTicket=(id)=>{const t=tickets.find(x=>x.id===id);const old=t.status, oldP=t.priority;t.status=modalStatus.value;t.priority=modalPriority.value;t.responsible=modalResp.value;t.updatedAt=new Date().toISOString();const c=modalComment.value.trim();const newFiles=modalFiles?[...modalFiles.files].map(f=>f.name):[];if(newFiles.length)t.attachments.push(...newFiles);if(old!==t.status)t.history.push(`Status alterado de ${old} para ${t.status}`);if(oldP!==t.priority)t.history.push(`Prioridade alterada de ${oldP} para ${t.priority}`);if(isClosed(t)&&!t.closedAt)t.closedAt=new Date().toISOString();if(c)t.history.push(`Comentário/Resposta: ${c}`);if(newFiles.length)t.history.push(`Anexos adicionados: ${newFiles.join(', ')}`);saveAll();ticketModal.close();renderAll()}
 function clearTicketFilters(){filterSector.value='';filterCategory.value='';filterPriority.value='';filterStatus.value='';filterSla.value='';renderTicketsTable()}
 function csvCell(v){return `"${String(v??'').replaceAll('"','""')}"`}
 function exportCsv(){const now=fmt(new Date());const header=[['Indústrias Tosi - Tosi Support Pro'],['Relatório Profissional de Chamados de TI'],[`Gerado em: ${now}`],[],['Protocolo','Título','Solicitante','Setor','Categoria','Tipo','Ativo','Impacto','Prioridade','Status','SLA %','SLA vencido','Criado em','Atualizado em','Responsável']];const rows=filteredTickets().map(t=>[t.id,t.title,t.requester,t.sector,t.category,t.type,t.asset,t.impact,t.priority,t.status,slaPercent(t),isLate(t)?'Sim':'Não',fmt(t.createdAt),fmt(t.updatedAt),t.responsible]);const csv='\ufeff'+[...header,...rows].map(r=>r.map(csvCell).join(';')).join('\n');const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`TosiSupportPro_Relatorio_TI_${new Date().toISOString().slice(0,10)}.csv`;a.click()}

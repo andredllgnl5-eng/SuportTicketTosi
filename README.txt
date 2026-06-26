@@ -1,3 +1,7 @@
+Tosi Support Pro v6 - IT Help Desk / ITSM
+
+Atualização: tela individual profissional do chamado com SLA, timeline, comentários, anexos, CMDB e relatório PDF por chamado.
+
 TOSI TICKET V2
 
 Inclui:
