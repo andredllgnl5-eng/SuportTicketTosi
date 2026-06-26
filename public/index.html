@@ -94,7 +94,7 @@
           <div><label>SLA</label><select id="filterSla"><option value="">Todos</option><option value="late">Vencidos</option><option value="ok">No prazo</option></select></div>
           <button class="primary" onclick="renderTicketsTable()">▽ Filtrar</button>
           <button class="ghost" onclick="clearTicketFilters()">Limpar</button>
-          <div class="toolbar-right"><button class="primary" onclick="showPage('newTicket')">＋ Novo Chamado</button><button id="exportBtn" class="ghost">⇩ Excel Executivo</button></div>
+          <div class="toolbar-right"><button class="primary" onclick="showPage('newTicket')">＋ Novo Chamado</button><button id="exportBtn" class="ghost">⇩ Centro de Relatórios</button></div>
         </div>
         <div class="card table-card"><div id="ticketsTable"></div></div>
       </section>
@@ -114,12 +114,38 @@
       <section id="assets" class="page"><div class="section-head"><h3>Ativos de TI / CMDB</h3><p>Inventário de notebooks, impressoras, servidores e equipamentos críticos relacionados aos chamados.</p></div><div class="card table-card"><div id="assetsTable"></div></div></section>
       <section id="serviceCatalog" class="page"><div class="section-head"><h3>Catálogo de Serviços</h3><p>Serviços padronizados com SLA, responsável e fluxo de atendimento.</p></div><div id="catalogGrid" class="catalog-grid"></div></section>
       <section id="knowledge" class="page"><div class="section-head"><h3>Base de conhecimento</h3><p>Artigos e procedimentos para reduzir chamados repetitivos.</p></div><div class="card form-card"><div id="kbList"></div></div></section>
-      <section id="reports" class="page"><div class="card report-cover"><img src="./logo-tosi.png" alt="Indústrias Tosi"><div><span class="eyebrow">Relatório Executivo</span><h3>Relatórios Profissionais de TI</h3><p>Excel executivo (.xlsx), PDF gerencial e CSV de compatibilidade para diretoria.</p></div><button class="primary" id="printReportBtn">Gerar PDF</button><button class="ghost" onclick="exportExecutiveExcel()">Gerar Excel Executivo</button><button class="ghost" id="reportBtn">Atualizar métricas</button></div><div class="grid-2"><div class="card form-card"><h3>Resumo operacional</h3><div id="reportOps"></div></div><div class="card form-card"><h3>Resumo SLA</h3><div id="reportSla"></div></div></div><div class="card table-card"><div id="reportTable"></div></div></section>
+      <section id="reports" class="page"><div class="card report-cover"><img src="./logo-tosi.png" alt="Indústrias Tosi"><div><span class="eyebrow">Relatório Executivo</span><h3>Relatórios Profissionais de TI</h3><p>Excel executivo (.xlsx), PDF gerencial e CSV de compatibilidade para diretoria.</p></div><button class="primary" onclick="openReportCenter()">Abrir Centro de Relatórios</button><button class="ghost" id="printReportBtn">Gerar PDF</button><button class="ghost" onclick="exportExecutiveExcel()">Gerar Excel Executivo</button><button class="ghost" id="reportBtn">Atualizar métricas</button></div><div class="grid-2"><div class="card form-card"><h3>Resumo operacional</h3><div id="reportOps"></div></div><div class="card form-card"><h3>Resumo SLA</h3><div id="reportSla"></div></div></div><div class="card table-card"><div id="reportTable"></div></div></section>
       <section id="settings" class="page"><div class="grid-2"><div class="card form-card"><h3>Departamentos</h3><div id="departmentsList"></div></div><div class="card form-card"><h3>Equipe de suporte</h3><div id="usersList"></div></div></div></section>
       <p class="copyright">© 2026 Indústrias Tosi. Tosi Support Pro - IT Help Desk.</p>
     </main>
   </div>
 
+
+  <dialog id="reportModal" class="report-modal">
+    <button class="modal-close" onclick="reportModal.close()">×</button>
+    <div class="report-modal-head">
+      <img src="./logo-tosi.png" alt="Indústrias Tosi">
+      <div>
+        <span class="eyebrow">Centro de Relatórios Executivos</span>
+        <h2>Exportação profissional de chamados de TI</h2>
+        <p>Gere relatórios com identidade visual, abas analíticas, filtros, resumo executivo, SLA e visões gerenciais.</p>
+      </div>
+    </div>
+    <div class="report-options">
+      <button onclick="exportExecutiveExcel(); reportModal.close();" class="report-option primary-option">
+        <strong>Excel Executivo (.xlsx)</strong>
+        <span>Arquivo profissional com abas Resumo, Chamados, Tabela Dinâmica, SLA, Técnicos e Categorias.</span>
+      </button>
+      <button onclick="generateReportWindow(); reportModal.close();" class="report-option">
+        <strong>PDF Executivo</strong>
+        <span>Relatório visual para diretoria com KPIs, tabela e layout corporativo.</span>
+      </button>
+      <button onclick="exportCsvCompat(); reportModal.close();" class="report-option">
+        <strong>CSV Compatibilidade</strong>
+        <span>Arquivo simples apenas para integração ou importação em outros sistemas.</span>
+      </button>
+    </div>
+  </dialog>
   <dialog id="ticketModal"><button class="modal-close" onclick="ticketModal.close()">×</button><div id="modalContent"></div></dialog>
   <script src="./app.js"></script>
 </body>
